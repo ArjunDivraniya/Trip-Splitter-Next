@@ -1,7 +1,9 @@
+"use client";
 // placeholder for `register/page.tsx` (migrated from Register.tsx)
 // File intentionally left without component code.
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +16,7 @@ const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +37,7 @@ const Register = () => {
     localStorage.setItem("userName", name);
     
     toast.success("Account created successfully!");
-    navigate("/dashboard");
+    router.push("/dashboard");
   };
 
   return (
@@ -123,7 +125,7 @@ const Register = () => {
 
               <div className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
-                <Link to="/login" className="text-primary font-medium hover:underline">
+                <Link href="/login" className="text-primary font-medium hover:underline">
                   Login
                 </Link>
               </div>

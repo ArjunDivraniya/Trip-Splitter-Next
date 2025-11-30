@@ -1,7 +1,8 @@
+"use client";
 // placeholder for `trip/[id]/add-expense/page.tsx` (migrated from AddExpense.tsx)
 // File intentionally left without component code.
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,7 @@ const members = [
 ];
 
 const AddExpense = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
   
   const [title, setTitle] = useState("");
@@ -58,7 +59,7 @@ const AddExpense = () => {
     }
 
     toast.success("Expense added successfully!");
-    navigate(`/trip/${id}`);
+    router.push(`/trip/${id}`);
   };
 
   return (
@@ -68,7 +69,7 @@ const AddExpense = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate(`/trip/${id}`)}
+            onClick={() => router.push(`/trip/${id}`)}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />

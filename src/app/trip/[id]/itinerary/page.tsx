@@ -1,7 +1,8 @@
+"use client";
 // placeholder for `trip/[id]/itinerary/page.tsx` (migrated from TripItinerary.tsx)
 // File intentionally left without component code.
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Plus, MapPin, Clock, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +31,7 @@ interface Activity {
 
 
 const TripItinerary = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
   const { toast } = useToast();
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -176,7 +177,7 @@ const TripItinerary = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate(`/trip/${id}`)}
+                onClick={() => router.push(`/trip/${id}`)}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>

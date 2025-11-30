@@ -1,6 +1,7 @@
+"use client";
 // placeholder for `trip/[id]/analytics/page.tsx` (migrated from Analytics.tsx)
 // File intentionally left without component code.
-import { useNavigate, useParams } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon } from "lucide-react";
@@ -61,7 +62,7 @@ const CHART_COLORS = [
 ];
 
 const Analytics = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
 
   const totalExpenses = categoryData.reduce((sum, item) => sum + item.value, 0);
@@ -91,7 +92,7 @@ const Analytics = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate(`/trip/${id}`)}
+            onClick={() => router.push(`/trip/${id}`)}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />

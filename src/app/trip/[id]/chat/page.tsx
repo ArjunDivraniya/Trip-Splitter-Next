@@ -1,7 +1,8 @@
+"use client";
 // placeholder for `trip/[id]/chat/page.tsx` (migrated from Chat.tsx)
 // File intentionally left without component code.
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Send, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ interface Message {
 }
 
 const Chat = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
   const [message, setMessage] = useState("");
   
@@ -140,7 +141,7 @@ const Chat = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(`/trip/${id}`)}
+              onClick={() => router.push(`/trip/${id}`)}
               className="shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />

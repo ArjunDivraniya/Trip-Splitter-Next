@@ -1,7 +1,8 @@
+"use client";
 // placeholder for `profile/page.tsx` (migrated from Profile.tsx)
 // File intentionally left without component code.
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import { ArrowLeft, User, Mail, Edit2, Save, TrendingUp, MapPin, QrCode, Setting
 import { toast } from "sonner";
 
 const Profile = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -44,7 +45,7 @@ const Profile = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => router.push("/dashboard")}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -174,7 +175,7 @@ const Profile = () => {
           {/* Settings */}
           <Card 
             className="shadow-float border-0 bg-gradient-to-br from-primary/5 to-accent/5 cursor-pointer hover:shadow-lg transition-smooth"
-            onClick={() => navigate("/settings")}
+            onClick={() => router.push("/settings")}
           >
             <CardContent className="p-6 text-center">
               <SettingsIcon className="h-12 w-12 text-primary mx-auto mb-3" />

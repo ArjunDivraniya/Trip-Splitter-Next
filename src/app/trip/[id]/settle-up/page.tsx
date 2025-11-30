@@ -1,6 +1,7 @@
+"use client";
 // placeholder for `trip/[id]/settle-up/page.tsx` (migrated from SettleUp.tsx)
 // File intentionally left without component code.
-import { useNavigate, useParams } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,7 +15,7 @@ const settlements = [
 ];
 
 const SettleUp = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
 
   const handleMarkPaid = (from: string, to: string, amount: number) => {
@@ -28,7 +29,7 @@ const SettleUp = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate(`/trip/${id}`)}
+            onClick={() => router.push(`/trip/${id}`)}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />

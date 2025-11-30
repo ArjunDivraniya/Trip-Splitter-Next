@@ -1,7 +1,8 @@
+"use client";
 // placeholder for `trip/[id]/packing-list/page.tsx` (migrated from TripPackingList.tsx)
 // File intentionally left without component code.
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Plus, Package, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +48,7 @@ const categories = [
 ];
 
 const TripPackingList = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { id } = useParams();
   const { toast } = useToast();
   const [items, setItems] = useState<PackingItem[]>([]);
@@ -139,7 +140,7 @@ const TripPackingList = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate(`/trip/${id}`)}
+                onClick={() => router.push(`/trip/${id}`)}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
