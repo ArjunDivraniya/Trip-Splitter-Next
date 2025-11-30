@@ -9,15 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Mail, Lock, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-// REMOVED: import splitImg from "@/assets/onboarding-split.png"; 
 
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name || !email || !password) {
@@ -30,13 +30,30 @@ const Register = () => {
       return;
     }
 
-    // Simulate registration
-    localStorage.setItem("isLoggedIn", "true");
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userName", name);
-    
-    toast.success("Account created successfully!");
-    router.push("/dashboard");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Account created successfully! Please login.");
+        router.push("/login");
+      } else {
+        toast.error(data.message || "Registration failed");
+      }
+    } catch (error) {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +61,6 @@ const Register = () => {
       <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 items-center">
         {/* Left side - Illustration */}
         <div className="hidden md:flex flex-col items-center justify-center space-y-6 animate-fade-in">
-          {/* FIXED: Use string path directly for public assets */}
           <img 
             src="/assets/onboarding-split.png"
             alt="Split expenses"
@@ -77,6 +93,7 @@ const Register = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="pl-10 h-12"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -92,6 +109,7 @@ const Register = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -107,20 +125,23 @@ const Register = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 h-12"
+                    disabled={loading}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 6 characters
-                </p>
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full h-12 gradient-primary hover:opacity-90 transition-opacity text-base"
                 size="lg"
+                disabled={loading}
               >
-                <UserPlus className="mr-2 h-5 w-5" />
-                Create Account
+                {loading ? "Creating Account..." : (
+                  <>
+                    <UserPlus className="mr-2 h-5 w-5" />
+                    Create Account
+                  </>
+                )}
               </Button>
 
               <div className="text-center text-sm text-muted-foreground">
