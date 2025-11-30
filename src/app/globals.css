@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 220 14% 98%;
+    --foreground: 217 33% 17%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 217 33% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 33% 17%;
+
+    /* Sky Blue - Primary brand color */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Deep Blue - Headers & Active states */
+    --primary-dark: 221 83% 48%;
+    
+    /* Success Green */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Warning Yellow */
+    --warning: 43 96% 56%;
+    --warning-foreground: 217 33% 17%;
+    
+    /* Alert/Error Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Soft backgrounds */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 217 33% 17%;
+
+    --muted: 220 13% 95%;
+    --muted-foreground: 217 13% 47%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+
+    --radius: 1rem;
+    
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(221 83% 48%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 35%));
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(59, 130, 246, 0.08);
+    --shadow-md: 0 4px 16px rgba(59, 130, 246, 0.12);
+    --shadow-lg: 0 8px 24px rgba(59, 130, 246, 0.16);
+  }
+
+  .dark {
+    --background: 217 33% 10%;
+    --foreground: 220 14% 98%;
+
+    --card: 217 33% 13%;
+    --card-foreground: 220 14% 98%;
+
+    --popover: 217 33% 13%;
+    --popover-foreground: 220 14% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    --primary-dark: 221 83% 48%;
+    
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 43 96% 56%;
+    --warning-foreground: 217 33% 17%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 220 14% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 217 20% 65%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(217 91% 60%), hsl(221 83% 48%));
+  }
+  
+  .gradient-success {
+    background: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 35%));
+  }
+  
+  .shadow-float {
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.12);
+  }
+  
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
