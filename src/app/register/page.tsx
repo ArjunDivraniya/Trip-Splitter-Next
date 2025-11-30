@@ -1,6 +1,5 @@
 "use client";
-// placeholder for `register/page.tsx` (migrated from Register.tsx)
-// File intentionally left without component code.
+
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Mail, Lock, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import splitImg from "@/assets/onboarding-split.png";
+// REMOVED: import splitImg from "@/assets/onboarding-split.png"; 
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -45,8 +44,9 @@ const Register = () => {
       <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 items-center">
         {/* Left side - Illustration */}
         <div className="hidden md:flex flex-col items-center justify-center space-y-6 animate-fade-in">
+          {/* FIXED: Use string path directly for public assets */}
           <img 
-            src={(splitImg as any)?.src ?? splitImg} 
+            src="/assets/onboarding-split.png"
             alt="Split expenses"
             className="w-full max-w-md rounded-2xl shadow-float"
           />
