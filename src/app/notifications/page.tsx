@@ -1,5 +1,8 @@
 // placeholder for `notifications/page.tsx` (migrated from Notifications.tsx)
 // File intentionally left without component code.
+
+'use client';
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";

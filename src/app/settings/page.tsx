@@ -1,7 +1,8 @@
-// placeholder for `settings/page.tsx` (migrated from Settings.tsx)
-// File intentionally left without component code.
+"use client";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes"; // Fixed: Import from next-themes
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -13,7 +14,10 @@ import { toast } from "sonner";
 
 const Settings = () => {
   const router = useRouter();
-  const [darkMode, setDarkMode] = useState(false);
+  const { setTheme, theme } = useTheme(); // Fixed: Use the theme hook
+  const [mounted, setMounted] = useState(false); // To avoid hydration mismatch
+
+  // Other preferences
   const [language, setLanguage] = useState("en");
   const [currency, setCurrency] = useState("INR");
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -22,33 +26,17 @@ const Settings = () => {
   const [paymentReminders, setPaymentReminders] = useState(true);
 
   useEffect(() => {
-    // Load settings from localStorage
-    const isDark = localStorage.getItem("darkMode") === "true";
+    setMounted(true);
+    // Load other settings from localStorage
     const storedLanguage = localStorage.getItem("language") || "en";
     const storedCurrency = localStorage.getItem("currency") || "INR";
     
-    setDarkMode(isDark);
     setLanguage(storedLanguage);
     setCurrency(storedCurrency);
-    
-    // Apply dark mode
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
   }, []);
 
   const handleDarkModeToggle = (checked: boolean) => {
-    setDarkMode(checked);
-    localStorage.setItem("darkMode", checked.toString());
-    
-    if (checked) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    
+    setTheme(checked ? "dark" : "light");
     toast.success(checked ? "Dark mode enabled" : "Light mode enabled");
   };
 
@@ -63,6 +51,11 @@ const Settings = () => {
     localStorage.setItem("currency", value);
     toast.success("Currency preference updated");
   };
+
+  // Prevent hydration mismatch by not rendering theme-dependent UI until mounted
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,7 +106,7 @@ const Settings = () => {
                 </div>
                 <Switch
                   id="dark-mode"
-                  checked={darkMode}
+                  checked={theme === "dark"} // Fixed: Check against theme state
                   onCheckedChange={handleDarkModeToggle}
                 />
               </div>
