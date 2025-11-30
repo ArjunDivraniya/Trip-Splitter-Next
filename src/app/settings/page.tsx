@@ -1,7 +1,7 @@
 // placeholder for `settings/page.tsx` (migrated from Settings.tsx)
 // File intentionally left without component code.
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -12,7 +12,7 @@ import { ArrowLeft, Moon, Globe, DollarSign, Bell } from "lucide-react";
 import { toast } from "sonner";
 
 const Settings = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState("en");
   const [currency, setCurrency] = useState("INR");
@@ -71,7 +71,7 @@ const Settings = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate("/profile")}
+            onClick={() => router.push("/profile")}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />

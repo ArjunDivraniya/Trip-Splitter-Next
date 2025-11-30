@@ -1,13 +1,13 @@
-// placeholder for `dashboard/page.tsx` (migrated from Dashboard.tsx)
-// File intentionally left without component code.
+"use client";
+
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation"; // CHANGED: Next.js router
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Bell, LogOut, User } from "lucide-react";
 import TripCard from "@/components/TripCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import travelHeroImg from "@/assets/travel-hero.png";
+// REMOVED: import travelHeroImg from "@/assets/travel-hero.png"; 
 
 // Mock data
 const mockTrips = [
@@ -48,24 +48,26 @@ const mockTrips = [
 
 const Dashboard = () => {
   const [userName, setUserName] = useState("");
-  const navigate = useNavigate();
+  const router = useRouter(); // CHANGED: Hook name
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-    if (!isLoggedIn) {
-      navigate("/login");
-      return;
+    // Check if window exists to avoid server-side errors
+    if (typeof window !== "undefined") {
+      const isLoggedIn = localStorage.getItem("isLoggedIn");
+      if (!isLoggedIn) {
+        router.push("/login");
+        return;
+      }
+      const name = localStorage.getItem("userName") || "User";
+      setUserName(name);
     }
-
-    const name = localStorage.getItem("userName") || "User";
-    setUserName(name);
-  }, [navigate]);
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("userEmail");
     localStorage.removeItem("userName");
-    navigate("/login");
+    router.push("/login");
   };
 
   const ongoingTrips = mockTrips.filter((trip) => trip.status === "ongoing");
@@ -94,7 +96,7 @@ const Dashboard = () => {
                 variant="ghost" 
                 size="icon"
                 className="relative"
-                onClick={() => navigate("/notifications")}
+                onClick={() => router.push("/notifications")}
               >
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full"></span>
@@ -102,7 +104,7 @@ const Dashboard = () => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={() => navigate("/profile")}
+                onClick={() => router.push("/profile")}
               >
                 <User className="h-5 w-5" />
               </Button>
@@ -120,8 +122,9 @@ const Dashboard = () => {
 
       {/* Hero Section */}
       <div className="relative h-64 overflow-hidden">
+        {/* CHANGED: Use string path to public folder */}
         <img 
-          src={travelHeroImg} 
+          src="/assets/travel-hero.png" 
           alt="Travel destinations"
           className="w-full h-full object-cover"
         />
@@ -151,14 +154,14 @@ const Dashboard = () => {
                   <TripCard
                     key={trip.id}
                     {...trip}
-                    onClick={() => navigate(`/trip/${trip.id}`)}
+                    onClick={() => router.push(`/trip/${trip.id}`)}
                   />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">No ongoing trips</p>
-                <Button onClick={() => navigate("/create-trip")}>
+                <Button onClick={() => router.push("/create-trip")}>
                   <Plus className="mr-2 h-5 w-5" />
                   Create Your First Trip
                 </Button>
@@ -173,7 +176,7 @@ const Dashboard = () => {
                   <TripCard
                     key={trip.id}
                     {...trip}
-                    onClick={() => navigate(`/trip/${trip.id}`)}
+                    onClick={() => router.push(`/trip/${trip.id}`)}
                   />
                 ))}
               </div>
@@ -190,7 +193,7 @@ const Dashboard = () => {
       <Button
         size="lg"
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg gradient-primary hover:opacity-90 transition-opacity"
-        onClick={() => navigate("/create-trip")}
+        onClick={() => router.push("/create-trip")}
       >
         <Plus className="h-6 w-6" />
       </Button>

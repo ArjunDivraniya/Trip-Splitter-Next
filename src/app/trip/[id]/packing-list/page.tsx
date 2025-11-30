@@ -50,6 +50,7 @@ const categories = [
 const TripPackingList = () => {
   const router = useRouter();
   const { id } = useParams();
+  const tripId = Array.isArray(id) ? id[0] : id || "";
   const { toast } = useToast();
   const [items, setItems] = useState<PackingItem[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -87,7 +88,7 @@ const TripPackingList = () => {
       is_packed: false,
       claimed_by: null,
       claimed_by_name: null,
-      trip_id: id || "",
+      trip_id: tripId,
     };
     setItems((prev) => [...prev, created]);
     setNewItem({ name: "", category: "Clothing" });

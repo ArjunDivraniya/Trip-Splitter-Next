@@ -1,7 +1,7 @@
 // placeholder for `notifications/page.tsx` (migrated from Notifications.tsx)
 // File intentionally left without component code.
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ interface Notification {
 }
 
 const Notifications = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
 
   const mockNotifications: Notification[] = [
@@ -143,7 +143,7 @@ const Notifications = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => router.push("/dashboard")}
             className="text-white hover:bg-white/20"
           >
             <ArrowLeft className="h-5 w-5" />

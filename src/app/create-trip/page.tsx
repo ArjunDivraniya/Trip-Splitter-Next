@@ -1,7 +1,7 @@
 // placeholder for `create-trip/page.tsx` (migrated from CreateTrip.tsx)
 // File intentionally left without component code.
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 const CreateTrip = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [tripName, setTripName] = useState("");
   const [location, setLocation] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -44,7 +44,7 @@ const CreateTrip = () => {
     }
 
     toast.success("Trip created successfully!");
-    navigate("/dashboard");
+    router.push("/dashboard");
   };
 
   return (
@@ -54,7 +54,7 @@ const CreateTrip = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => router.push("/dashboard")}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />

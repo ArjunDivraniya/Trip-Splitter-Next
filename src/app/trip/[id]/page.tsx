@@ -1,6 +1,6 @@
-// placeholder for `trip/[id]/page.tsx` (migrated from TripOverview.tsx)
-// File intentionally left without component code.
-import { useNavigate, useParams } from "react-router-dom";
+"use client";
+
+import { useRouter, useParams } from "next/navigation"; // CHANGED: Next.js imports
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, MapPin, Calendar, Users, Receipt, DollarSign, ShoppingBag, Utensils, Hotel, Plane, BarChart3, MessageCircle, ClipboardList } from "lucide-react";
 
-// Mock data
+// Mock data (Same as before)
 const tripData = {
   id: "1",
   name: "Goa Beach Trip",
@@ -49,7 +49,7 @@ const categoryColors: Record<string, string> = {
 };
 
 const TripOverview = () => {
-  const navigate = useNavigate();
+  const router = useRouter(); // CHANGED: Hook name
   const { id } = useParams();
 
   const CategoryIcon = (category: string) => {
@@ -64,7 +64,7 @@ const TripOverview = () => {
         <div className="container mx-auto px-4 py-4">
           <Button
             variant="ghost"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => router.push("/dashboard")}
             className="gap-2"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -124,7 +124,7 @@ const TripOverview = () => {
           {/* Analytics Card */}
           <Card 
             className="hover:shadow-float transition-smooth cursor-pointer bg-gradient-to-r from-primary/5 to-success/5 border-primary/20"
-            onClick={() => navigate(`/trip/${id}/analytics`)}
+            onClick={() => router.push(`/trip/${id}/analytics`)}
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ const TripOverview = () => {
           {/* Group Chat Card */}
           <Card 
             className="hover:shadow-float transition-smooth cursor-pointer bg-gradient-to-r from-success/5 to-primary/5 border-success/20"
-            onClick={() => navigate(`/trip/${id}/chat`)}
+            onClick={() => router.push(`/trip/${id}/chat`)}
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -162,7 +162,7 @@ const TripOverview = () => {
           {/* Trip Itinerary Card */}
           <Card 
             className="hover:shadow-float transition-smooth cursor-pointer bg-gradient-to-r from-warning/5 to-primary/5 border-warning/20"
-            onClick={() => navigate(`/trip/${id}/itinerary`)}
+            onClick={() => router.push(`/trip/${id}/itinerary`)}
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -248,7 +248,7 @@ const TripOverview = () => {
                 <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground mb-4">Simplify settlements and see who owes whom</p>
                 <Button 
-                  onClick={() => navigate(`/trip/${id}/settle-up`)}
+                  onClick={() => router.push(`/trip/${id}/settle-up`)}
                   className="gradient-primary hover:opacity-90"
                 >
                   View Settlements
@@ -263,7 +263,7 @@ const TripOverview = () => {
       <Button
         size="lg"
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg gradient-primary hover:opacity-90 transition-opacity"
-        onClick={() => navigate(`/trip/${id}/add-expense`)}
+        onClick={() => router.push(`/trip/${id}/add-expense`)}
       >
         <Plus className="h-6 w-6" />
       </Button>

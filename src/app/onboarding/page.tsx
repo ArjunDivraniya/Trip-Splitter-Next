@@ -1,7 +1,7 @@
 // placeholder for `onboarding/page.tsx` (migrated from Onboarding.tsx)
 // File intentionally left without component code.
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import welcomeImg from "@/assets/onboarding-welcome.png";
@@ -28,14 +28,14 @@ const onboardingSteps = [
 
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleNext = () => {
     if (currentStep < onboardingSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
       localStorage.setItem("hasSeenOnboarding", "true");
-      navigate("/login");
+      router.push("/login");
     }
   };
 
@@ -47,7 +47,7 @@ const Onboarding = () => {
 
   const handleSkip = () => {
     localStorage.setItem("hasSeenOnboarding", "true");
-    navigate("/login");
+    router.push("/login");
   };
 
   const step = onboardingSteps[currentStep];
@@ -59,7 +59,7 @@ const Onboarding = () => {
           {/* Image */}
           <div className="flex justify-center mb-8">
             <img 
-              src={step.image} 
+              src={(step.image as any)?.src ?? step.image}
               alt={step.title}
               className="w-full max-w-sm h-auto rounded-2xl shadow-float animate-scale-in"
             />

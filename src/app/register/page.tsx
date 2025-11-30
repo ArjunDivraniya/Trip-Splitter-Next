@@ -46,7 +46,7 @@ const Register = () => {
         {/* Left side - Illustration */}
         <div className="hidden md:flex flex-col items-center justify-center space-y-6 animate-fade-in">
           <img 
-            src={splitImg} 
+            src={(splitImg as any)?.src ?? splitImg} 
             alt="Split expenses"
             className="w-full max-w-md rounded-2xl shadow-float"
           />

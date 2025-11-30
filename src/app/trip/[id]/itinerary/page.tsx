@@ -3,6 +3,7 @@
 // File intentionally left without component code.
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Plus, MapPin, Clock, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,7 +81,7 @@ const TripItinerary = () => {
           table: "activities",
           filter: `trip_id=eq.${id}`,
         },
-        (payload) => {
+        (payload: any) => {
           if (payload.eventType === "INSERT") {
             setActivities((prev) => [...prev, payload.new as Activity]);
           } else if (payload.eventType === "UPDATE") {

@@ -1,26 +1,44 @@
-// placeholder for `not-found.tsx` (migrated from NotFound.tsx)
-// File intentionally left without component code.
-import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+"use client";
 
-const NotFound = () => {
-  const location = useLocation();
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 
-  useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
+export default function NotFound() {
+  const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
-        <a href="/" className="text-primary underline hover:text-primary/90">
-          Return to Home
-        </a>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+      <div className="bg-destructive/10 p-4 rounded-full mb-6 animate-fade-in">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+      </div>
+      
+      <h1 className="text-4xl font-bold mb-2">Page Not Found</h1>
+      
+      <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+        Oops! We couldn't find the page you were looking for.
+        {pathname && (
+          <span className="block mt-2 font-mono text-sm bg-muted p-1 rounded">
+            Path: {pathname}
+          </span>
+        )}
+      </p>
+
+      <div className="flex gap-4 justify-center">
+        <Button asChild variant="default">
+          <Link href="/dashboard" className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </Button>
+        
+        <Button asChild variant="outline">
+          <Link href="/">
+            Go Home
+          </Link>
+        </Button>
       </div>
     </div>
   );
-};
-
-export default NotFound;
+}
