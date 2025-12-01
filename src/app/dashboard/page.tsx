@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Bell, LogOut, User } from "lucide-react";
 import TripCard from "@/components/TripCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// REMOVED: import travelHeroImg from "@/assets/travel-hero.png"; 
+// REMOVED: import travelHeroImg... (Use string path instead)
 
 // Mock data
 const mockTrips = [
@@ -51,7 +51,7 @@ const Dashboard = () => {
   const router = useRouter(); // CHANGED: Hook name
 
   useEffect(() => {
-    // Check if window exists to avoid server-side errors
+    // Check local storage safely
     if (typeof window !== "undefined") {
       const isLoggedIn = localStorage.getItem("isLoggedIn");
       if (!isLoggedIn) {
@@ -122,7 +122,7 @@ const Dashboard = () => {
 
       {/* Hero Section */}
       <div className="relative h-64 overflow-hidden">
-        {/* CHANGED: Use string path to public folder */}
+        {/* CHANGED: Using string path. Ensure image is in /public/assets/travel-hero.png */}
         <img 
           src="/assets/travel-hero.png" 
           alt="Travel destinations"

@@ -9,8 +9,9 @@ export async function POST(request: Request) {
     await dbConnect();
     const { email, password } = await request.json();
 
-    // Find user
-    const user = await User.findOne({ email });
+    // 1. Find user AND explicitly select the password
+    const user = await User.findOne({ email }).select("+password");
+    
     if (!user) {
       return NextResponse.json(
         { message: "Invalid credentials" },
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check password
+    // 2. Check password (now user.password is defined)
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return NextResponse.json(
@@ -27,14 +28,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate Token
+    // 3. Generate Token
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET!,
       { expiresIn: "7d" }
     );
 
-    // Return success with user data (excluding password)
+    // 4. Return success
     return NextResponse.json({
       message: "Login successful",
       token,
@@ -42,9 +43,11 @@ export async function POST(request: Request) {
         id: user._id,
         name: user.name,
         email: user.email,
+        profileImage: user.profileImage, // Useful for the frontend
       },
     });
   } catch (error: any) {
+    console.error("Login Error:", error); // Log error for debugging
     return NextResponse.json(
       { message: error.message || "Something went wrong" },
       { status: 500 }
