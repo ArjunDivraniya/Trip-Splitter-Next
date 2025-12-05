@@ -6,7 +6,7 @@ import { getDataFromToken } from "@/lib/getDataFromToken";
 // GET Messages
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> } // Changed: params is a Promise
+  context: { params: { id: string } | Promise<{ id: string }> } // Accept both plain params or Promise
 ) {
   try {
     await dbConnect();
@@ -28,7 +28,7 @@ export async function GET(
 // POST Message
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> } // Changed: params is a Promise
+  context: { params: { id: string } | Promise<{ id: string }> } // Accept both plain params or Promise
 ) {
   try {
     await dbConnect();
