@@ -4,68 +4,67 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Bell, LogOut, User } from "lucide-react";
+import { Plus, Bell, LogOut, User, Loader2 } from "lucide-react";
 import TripCard from "@/components/TripCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
-// Mock trip data (You can replace this with a real API call later)
-const mockTrips = [
-  {
-    id: "1",
-    name: "Goa Beach Trip",
-    location: "Goa, India",
-    startDate: "Nov 15",
-    endDate: "Nov 20",
-    members: 5,
-    totalExpense: 25000,
-    yourBalance: 500,
-    status: "ongoing" as const,
-  },
-];
+// Define Trip Interface
+interface Trip {
+  _id: string;
+  name: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  members: any[];
+}
 
 const Dashboard = () => {
   const router = useRouter();
   const [userName, setUserName] = useState("User");
   const [userAvatar, setUserAvatar] = useState("");
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/user/me");
-        const data = await res.json();
+        // 1. Fetch User Profile
+        const userRes = await fetch("/api/user/me");
+        if (!userRes.ok) throw new Error("Auth failed");
+        const userData = await userRes.json();
+        setUserName(userData.data.name);
+        setUserAvatar(userData.data.profileImage);
 
-        if (!res.ok) {
-          throw new Error(data.message);
-        }
+        // 2. Fetch User Trips (REAL DATA)
+        const tripRes = await fetch("/api/trips/user");
+        const tripData = await tripRes.json();
         
-        setUserName(data.data.name);
-        setUserAvatar(data.data.profileImage);
+        if (tripRes.ok) {
+          setTrips(tripData.data);
+        }
+
       } catch (error) {
-        console.error("Auth check failed:", error);
-        router.push("/login"); // Redirect if token invalid/missing
+        console.error("Dashboard load failed:", error);
+        router.push("/login");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUser();
+    fetchData();
   }, [router]);
 
   const handleLogout = async () => {
-    // Ideally call a logout API to clear cookie
-    // For now, redirecting helps, but clearing cookie is best practice
-    document.cookie = "token=; Max-Age=0; path=/;"; // Simple client-side clear
-    router.push("/login");
-    toast.success("Logged out");
+    try {
+        await fetch("/api/auth/logout");
+        router.push("/login");
+        toast.success("Logged out");
+    } catch (e) { router.push("/login"); }
   };
 
-  const ongoingTrips = mockTrips.filter((trip) => trip.status === "ongoing");
-  const pastTrips = mockTrips.filter((trip) => trip.status === "completed");
-
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
@@ -88,16 +87,9 @@ const Dashboard = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative" onClick={() => router.push("/notifications")}>
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full"></span>
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
-                <User className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={() => router.push("/notifications")}><Bell className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}><User className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
             </div>
           </div>
         </div>
@@ -105,11 +97,7 @@ const Dashboard = () => {
 
       {/* Hero Section */}
       <div className="relative h-64 overflow-hidden">
-        <img 
-          src="/assets/travel-hero.png" 
-          alt="Travel destinations"
-          className="w-full h-full object-cover"
-        />
+        <img src="/assets/travel-hero.png" alt="Travel destinations" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
         <div className="absolute bottom-6 left-0 right-0 container mx-auto px-4">
           <h1 className="text-3xl font-bold text-foreground mb-2">Your Trips</h1>
@@ -119,37 +107,44 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="ongoing" className="space-y-6">
+        <Tabs defaultValue="all" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="ongoing" className="text-base">Ongoing Trips ({ongoingTrips.length})</TabsTrigger>
-            <TabsTrigger value="past" className="text-base">Past Trips ({pastTrips.length})</TabsTrigger>
+            <TabsTrigger value="all">All Trips ({trips.length})</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="ongoing" className="space-y-4 animate-fade-in">
-            {ongoingTrips.length > 0 ? (
+          <TabsContent value="all" className="space-y-4 animate-fade-in">
+            {trips.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {ongoingTrips.map((trip) => (
+                {trips.map((trip) => (
                   <TripCard
-                    key={trip.id}
-                    {...trip}
-                    onClick={() => router.push(`/trip/${trip.id}`)}
+                    key={trip._id}
+                    id={trip._id} // Pass real ID
+                    name={trip.name}
+                    location={trip.destination}
+                    startDate={new Date(trip.startDate).toLocaleDateString()}
+                    endDate={new Date(trip.endDate).toLocaleDateString()}
+                    members={trip.members.length} // Count members
+                    totalExpense={0} // We load real totals in overview, 0 for dashboard list for speed
+                    yourBalance={0}
+                    status={"ongoing"}
+                    onClick={() => router.push(`/trip/${trip._id}`)}
                   />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">No ongoing trips</p>
+                <p className="text-muted-foreground mb-4">No trips found</p>
                 <Button onClick={() => router.push("/create-trip")}>
                   <Plus className="mr-2 h-5 w-5" /> Create Your First Trip
                 </Button>
               </div>
             )}
           </TabsContent>
-
-          <TabsContent value="past" className="space-y-4 animate-fade-in">
-             <div className="text-center py-12">
-                <p className="text-muted-foreground">No past trips yet</p>
-              </div>
+          
+          {/* Placeholder for filtering logic */}
+          <TabsContent value="upcoming">
+             <div className="text-center py-12 text-muted-foreground">Filtered view coming soon</div>
           </TabsContent>
         </Tabs>
       </div>
