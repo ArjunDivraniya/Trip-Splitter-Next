@@ -18,10 +18,11 @@ interface Trip {
   startDate: string;
   endDate: string;
   members: any[];
+  membersCount?: number; // Added optional count
   totalExpense: number;
   yourBalance: number;
-  status: string; // 'active' or 'completed'
-  userStatus: string; // 'invited' or 'joined'
+  status: string; 
+  userStatus: string; 
 }
 
 const Dashboard = () => {
@@ -130,12 +131,8 @@ const Dashboard = () => {
                 <Bell className="h-5 w-5" />
                 {/* Optional: Add dot if unread notifications */}
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
-                <User className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-5 w-5" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}><User className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
             </div>
           </div>
         </div>
@@ -171,6 +168,7 @@ const Dashboard = () => {
                                 <div>
                                     <h4 className="font-bold text-foreground">{trip.name}</h4>
                                     <p className="text-sm text-muted-foreground">{trip.destination}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Invited by admin</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleResponse(trip._id, "reject")}>
@@ -205,9 +203,9 @@ const Dashboard = () => {
                     location={trip.destination}
                     startDate={new Date(trip.startDate).toLocaleDateString()}
                     endDate={new Date(trip.endDate).toLocaleDateString()}
-                    members={trip.members.length}
-                    totalExpense={trip.totalExpense} // REAL VALUE
-                    yourBalance={trip.yourBalance}   // REAL VALUE
+                    members={trip.membersCount || 0} // Use calculated count
+                    totalExpense={trip.totalExpense} 
+                    yourBalance={trip.yourBalance}   
                     status={"ongoing"}
                     onClick={() => router.push(`/trip/${trip._id}`)}
                   />
@@ -234,7 +232,7 @@ const Dashboard = () => {
                     location={trip.destination}
                     startDate={new Date(trip.startDate).toLocaleDateString()}
                     endDate={new Date(trip.endDate).toLocaleDateString()}
-                    members={trip.members.length}
+                    members={trip.membersCount || 0} // Use calculated count
                     totalExpense={trip.totalExpense}
                     yourBalance={trip.yourBalance}
                     status={"completed"}

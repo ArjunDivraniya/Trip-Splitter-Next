@@ -8,7 +8,7 @@ interface TripCardProps {
   location: string;
   startDate: string;
   endDate: string;
-  members: number;
+  members: number | any[]; // Can be a number count or array
   totalExpense: number;
   yourBalance: number;
   status: "ongoing" | "completed";
@@ -27,6 +27,9 @@ const TripCard = ({
   onClick,
 }: TripCardProps) => {
   const isPositive = yourBalance >= 0;
+  
+  // Handle members count safely
+  const memberCount = Array.isArray(members) ? members.length : members;
 
   return (
     <Card 
@@ -55,7 +58,7 @@ const TripCard = ({
             </div>
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4" />
-              <span>{members} members</span>
+              <span>{memberCount} members</span>
             </div>
           </div>
         </div>

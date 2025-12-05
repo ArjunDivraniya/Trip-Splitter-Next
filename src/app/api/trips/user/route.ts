@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
       ]
     })
     .sort({ createdAt: -1 })
-    .populate("members.userId", "name profileImage"); // Populate for avatars
+    .populate("members.userId", "name profileImage");
 
-    // Calculate totals (Same as before)
+    // Calculate totals
     const tripIds = trips.map(t => t._id);
     const expenses = await Expense.find({ trip: { $in: tripIds } });
 
@@ -38,23 +38,26 @@ export async function GET(request: NextRequest) {
         if (isInSplit) tripStats[tid].balance -= splitAmount;
     });
 
-    // Format data with USER STATUS
+    // Format data
     const tripsWithData = trips.map(trip => {
         const stats = tripStats[trip._id.toString()] || { total: 0, balance: 0 };
         
-        // Check current user's status in this trip
-        let userStatus = "joined"; // Default for creator
+        let userStatus = "joined"; 
         if (trip.createdBy.toString() !== userId) {
             const memberRecord = trip.members.find((m: any) => m.userId?._id.toString() === userId);
             userStatus = memberRecord ? memberRecord.status : "invited";
         }
 
+        // Count only JOINED members (+1 for creator)
+        const activeMemberCount = trip.members.filter((m: any) => m.status === "joined").length + 1;
+
         return {
             ...trip.toObject(),
             totalExpense: stats.total,
             yourBalance: Math.round(stats.balance),
-            userStatus: userStatus, // 'invited' or 'joined'
-            isAdmin: trip.createdBy.toString() === userId
+            userStatus: userStatus,
+            isAdmin: trip.createdBy.toString() === userId,
+            membersCount: activeMemberCount // Use this specific count for UI
         };
     });
 

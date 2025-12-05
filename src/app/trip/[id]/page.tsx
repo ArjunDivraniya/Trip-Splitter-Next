@@ -94,7 +94,7 @@ const TripOverview = () => {
         const res = await fetch(`/api/trips/${id}/end`, { method: "POST" });
         if (res.ok) {
             toast.success("Trip marked as completed");
-            setTrip({ ...trip, status: "completed" }); // Optimistic update
+            setTrip((prev: any) => ({ ...prev, status: "completed" })); // Optimistic update
         } else {
             const data = await res.json();
             toast.error(data.message || "Only admin can end trip");
@@ -145,7 +145,7 @@ const TripOverview = () => {
       <header className="bg-card border-b border-border/50 sticky top-0 z-10 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Button variant="ghost" onClick={() => router.push("/dashboard")} className="gap-2">
-            <ArrowLeft className="h-5 w-5" /> Back
+            <ArrowLeft className="h-5 w-5" /> Back to Dashboard
           </Button>
 
           {/* Admin End Trip Button - Only shows if you are Creator AND trip is Active */}
@@ -159,7 +159,9 @@ const TripOverview = () => {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>End this trip?</AlertDialogTitle>
-                        <AlertDialogDescription>This will mark the trip as completed. You can still view details but it will move to "Past Trips".</AlertDialogDescription>
+                        <AlertDialogDescription>
+                            This will mark the trip as completed. You can still view details but it will move to "Past Trips".
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -328,7 +330,6 @@ const TripOverview = () => {
             )) : (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
                     <p className="text-muted-foreground">No expenses added yet.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Tap the + button to add one!</p>
                 </div>
             )}
           </TabsContent>

@@ -8,32 +8,38 @@ import { getDataFromToken } from "@/lib/getDataFromToken";
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = getDataFromToken(request); // User requesting the data
     const { id } = await params;
 
-    // 1. Fetch Trip & Members
+    // 1. Fetch Trip
     const trip = await Trip.findById(id)
       .populate("members.userId", "name email profileImage")
       .populate("createdBy", "name email profileImage");
 
-    if (!trip) return NextResponse.json({ message: "Trip not found" }, { status: 404 });
+    if (!trip) {
+      return NextResponse.json({ message: "Trip not found" }, { status: 404 });
+    }
 
-    // 2. Fetch Expenses with deep population
+    // 2. Fetch Expenses
     const expenses = await Expense.find({ trip: id })
       .populate("paidBy", "name")
-      .populate("splitBetween", "name") 
+      .populate("splitBetween", "name")
       .sort({ date: -1 });
 
     // 3. Calculate Balances
     let totalTripExpense = 0;
     const memberBalances: Record<string, number> = {};
 
-    // Initialize balances
-    trip.members.forEach((m: any) => {
-        if (m.userId) memberBalances[m.userId._id.toString()] = 0;
-    });
+    // Initialize balances ONLY for joined members and creator
     const creatorId = trip.createdBy._id.toString();
-    if (memberBalances[creatorId] === undefined) memberBalances[creatorId] = 0;
+    memberBalances[creatorId] = 0;
+
+    trip.members.forEach((m: any) => {
+        // Only include members who have ACCEPTED the invite
+        if (m.userId && m.status === "joined") {
+            memberBalances[m.userId._id.toString()] = 0;
+        }
+    });
 
     expenses.forEach((expense: any) => {
       totalTripExpense += expense.amount;
@@ -49,42 +55,41 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       });
     });
 
-    // 4. Format Expenses
-    const formattedExpenses = expenses.map((e: any) => {
-      const splitNames = e.splitBetween.map((u: any) => u.name.split(" ")[0]); 
-      const perPerson = e.amount / (e.splitBetween.length || 1);
+    // 4. Format Members (Only Joined + Creator)
+    const activeMembers = trip.members
+        .filter((m: any) => m.status === "joined" && m.userId)
+        .map((m: any) => ({
+            id: m.userId._id.toString(),
+            name: m.userId.name,
+            email: m.email,
+            avatar: m.userId.profileImage || "",
+            balance: memberBalances[m.userId._id.toString()] || 0,
+            status: "joined"
+        }));
 
-      return {
-        id: e._id,
-        title: e.title,
-        amount: e.amount,
-        category: e.category,
-        paidBy: e.paidBy.name, 
-        splitNames: splitNames.join(", "),
-        perPerson: Math.round(perPerson),
-        date: new Date(e.date).toLocaleDateString(),
-      };
-    });
-
-    // 5. Format Members & FIX DUPLICATES
-    const formattedMembers = trip.members.map((m: any) => ({
-      id: m.userId?._id.toString() || "unknown",
-      name: m.userId?.name || m.email,
-      avatar: m.userId?.profileImage || "",
-      balance: memberBalances[m.userId?._id.toString()] || 0
-    }));
-
-    // Check if creator is already in the list (Robust String Comparison)
-    const isCreatorInMembers = formattedMembers.some((m: any) => m.id === creatorId);
-    
-    if (!isCreatorInMembers) {
-        formattedMembers.push({
+    // Ensure creator is in the list
+    if (!activeMembers.some((m: any) => m.id === creatorId)) {
+        activeMembers.push({
             id: creatorId,
             name: trip.createdBy.name,
             avatar: trip.createdBy.profileImage,
-            balance: memberBalances[creatorId] || 0
+            email: trip.createdBy.email,
+            balance: memberBalances[creatorId] || 0,
+            status: "joined"
         });
     }
+
+    // 5. Format Expenses
+    const formattedExpenses = expenses.map((e: any) => ({
+      id: e._id,
+      title: e.title,
+      amount: e.amount,
+      category: e.category,
+      paidBy: e.paidBy.name,
+      splitNames: e.splitBetween.map((u: any) => u.name.split(" ")[0]).join(", "),
+      perPerson: Math.round(e.amount / (e.splitBetween.length || 1)),
+      date: new Date(e.date).toLocaleDateString(),
+    }));
 
     return NextResponse.json({
       success: true,
@@ -96,8 +101,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         endDate: new Date(trip.endDate).toDateString(),
         totalExpense: totalTripExpense,
         yourBalance: memberBalances[userId] || 0,
-        members: formattedMembers,
+        status: trip.status, 
+        members: activeMembers, // Only active members returned here
         expenses: formattedExpenses,
+        isCreator: userId === creatorId,
       }
     });
 
