@@ -6,12 +6,11 @@ import { getDataFromToken } from "@/lib/getDataFromToken";
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    
-    // Verify auth (optional, but good for security)
+    // Optional: Verify auth
     try {
-      await getDataFromToken(request);
-    } catch (error) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        await getDataFromToken(request);
+    } catch (e) {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -21,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: [] });
     }
 
-    // Search by name or email (case-insensitive)
+    // Search by name OR email (case-insensitive)
     const users = await User.find({
       $or: [
         { name: { $regex: query, $options: "i" } },
@@ -29,9 +28,12 @@ export async function GET(request: NextRequest) {
       ],
     })
     .select("name email profileImage _id")
-    .limit(5);
+    .limit(5); // Limit results for performance
 
-    return NextResponse.json({ data: users });
+    return NextResponse.json({
+      success: true,
+      data: users,
+    });
   } catch (error: any) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }

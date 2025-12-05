@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Calendar as CalendarIcon, MapPin, Plus, X, Loader2, Search } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ArrowLeft, Calendar as CalendarIcon, MapPin, Users, Plus, X, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,10 +15,11 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DateRange } from "react-day-picker";
 
+// Interface for members
 interface Member {
   email: string;
   name?: string;
-  userId?: string;
+  userId?: string; // Optional, if they are a registered user
   profileImage?: string;
 }
 
@@ -30,16 +31,17 @@ const CreateTrip = () => {
   const [tripName, setTripName] = useState("");
   const [destination, setDestination] = useState("");
   
-  // Use explicit DateRange type
+  // Explicitly type DateRange or undefined
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  
+
   // Member Search State
+  const [members, setMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Member[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [members, setMembers] = useState<Member[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Debounce Search
+  // Debounce Search Effect
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery.length >= 2) {
@@ -47,7 +49,8 @@ const CreateTrip = () => {
       } else {
         setSearchResults([]);
       }
-    }, 300);
+    }, 300); // 300ms delay
+
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -56,7 +59,9 @@ const CreateTrip = () => {
     try {
       const res = await fetch(`/api/user/search?query=${encodeURIComponent(query)}`);
       const data = await res.json();
-      if (res.ok) {
+      
+      if (data.success) {
+        // Map backend users to Member format
         const results = data.data.map((u: any) => ({
             email: u.email,
             name: u.name,
@@ -64,37 +69,53 @@ const CreateTrip = () => {
             profileImage: u.profileImage
         }));
         
+        // Filter out people already added
         const filtered = results.filter((r: Member) => 
             !members.some(m => m.email === r.email)
         );
+        
         setSearchResults(filtered);
       }
     } catch (error) {
-      console.error("Search failed", error);
+      console.error("Search error", error);
     } finally {
       setIsSearching(false);
     }
   };
 
+  // Add Member (either from search result or manual email)
   const addMember = (member?: Member) => {
     let newMember: Member;
+
     if (member) {
+        // Adding from search result
         newMember = member;
     } else {
-        if (!searchQuery) return;
+        // Manual email entry
+        if (!searchQuery.trim()) return;
+        
+        // Basic email validation
         if (!/^\S+@\S+\.\S+$/.test(searchQuery)) {
-            toast.error("Please enter a valid email");
+            toast.error("Please enter a valid email address");
             return;
         }
+
+        // Check duplicate
         if (members.some(m => m.email === searchQuery)) {
             toast.error("Member already added");
             return;
         }
-        newMember = { email: searchQuery, name: searchQuery.split('@')[0] };
+
+        newMember = { 
+            email: searchQuery, 
+            name: searchQuery.split('@')[0] // Default name from email
+        };
     }
+
     setMembers([...members, newMember]);
     setSearchQuery("");
     setSearchResults([]);
+    searchInputRef.current?.focus();
   };
 
   const removeMember = (emailToRemove: string) => {
@@ -102,21 +123,22 @@ const CreateTrip = () => {
   };
 
   const handleCreateTrip = async () => {
-    // 1. Handle Single Day Selection automatically
+    // Validation
     let finalStartDate = dateRange?.from;
     let finalEndDate = dateRange?.to;
 
-    // If only one day selected, make start = end
+    // Handle single day selection
     if (finalStartDate && !finalEndDate) {
         finalEndDate = finalStartDate;
     }
 
-    if (!tripName || !destination || !finalStartDate) {
-      toast.error("Please fill in all trip details (Name, Location, Dates)");
+    if (!tripName || !destination || !finalStartDate || !finalEndDate) {
+      toast.error("Please fill in trip name, location, and dates.");
       return;
     }
 
     setIsLoading(true);
+
     try {
       const response = await fetch("/api/trips/create", {
         method: "POST",
@@ -125,16 +147,20 @@ const CreateTrip = () => {
           name: tripName,
           destination: destination,
           startDate: finalStartDate,
-          endDate: finalEndDate, // Send the corrected end date
-          members: members,
+          endDate: finalEndDate,
+          members: members, // Send full member objects
         }),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create trip");
+      }
 
       toast.success("Trip created successfully!");
-      router.push(`/trip/${data.tripId}`);
+      router.push(`/trip/${data.tripId}`); // Redirect to new trip
+
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -195,7 +221,7 @@ const CreateTrip = () => {
                             mode="range" 
                             defaultMonth={dateRange?.from} 
                             selected={dateRange} 
-                            onSelect={setDateRange} // simplified handler
+                            onSelect={setDateRange} 
                             numberOfMonths={2} 
                         />
                     </PopoverContent>
@@ -204,8 +230,8 @@ const CreateTrip = () => {
             </CardContent>
           </Card>
 
-          {/* Member Search Section */}
-          <Card className="shadow-float border-0">
+          {/* SEARCH & ADD MEMBERS */}
+          <Card className="shadow-float border-0 overflow-visible"> {/* Overflow visible for dropdown */}
             <CardHeader>
               <CardTitle>Travel Companions</CardTitle>
               <CardDescription>Search for friends to add</CardDescription>
@@ -218,13 +244,14 @@ const CreateTrip = () => {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       id="members"
                       placeholder="Search by name or email..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && addMember()}
                       className="pl-10 h-12"
-                      autoComplete="off"
+                      autoComplete="off" // Prevent browser history blocking view
                     />
                   </div>
                   <Button onClick={() => addMember()} type="button" className="h-12 w-12 p-0">
@@ -232,23 +259,24 @@ const CreateTrip = () => {
                   </Button>
                 </div>
 
+                {/* Suggestions Dropdown */}
                 {searchResults.length > 0 && (
-                    <div className="absolute z-20 w-full bg-card border border-border rounded-md shadow-lg mt-1 max-h-60 overflow-auto">
+                    <div className="absolute z-50 w-full bg-card border border-border rounded-md shadow-xl mt-1 max-h-60 overflow-auto animate-in fade-in zoom-in-95 duration-200">
                         {searchResults.map((user) => (
                             <div 
                                 key={user.email} 
-                                className="flex items-center gap-3 p-3 hover:bg-accent cursor-pointer transition-colors"
+                                className="flex items-center gap-3 p-3 hover:bg-accent/50 cursor-pointer transition-colors border-b last:border-0"
                                 onClick={() => addMember(user)}
                             >
-                                <Avatar className="h-8 w-8">
+                                <Avatar className="h-8 w-8 border border-border">
                                     <AvatarImage src={user.profileImage} />
-                                    <AvatarFallback>{user.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                                    <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{user.name}</p>
+                                    <p className="text-sm font-medium truncate text-foreground">{user.name}</p>
                                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                 </div>
-                                <Plus className="h-4 w-4 text-muted-foreground" />
+                                <Plus className="h-4 w-4 text-primary" />
                             </div>
                         ))}
                     </div>
@@ -261,8 +289,8 @@ const CreateTrip = () => {
                   <Label>Added Members</Label>
                   <div className="flex flex-wrap gap-2">
                     {members.map((m) => (
-                      <div key={m.email} className="flex items-center gap-2 bg-secondary/50 text-secondary-foreground px-3 py-1.5 rounded-full text-sm border border-border">
-                        <Avatar className="h-6 w-6">
+                      <div key={m.email} className="flex items-center gap-2 bg-secondary/50 text-secondary-foreground px-3 py-1.5 rounded-full text-sm border border-border shadow-sm animate-in fade-in zoom-in-95">
+                        <Avatar className="h-6 w-6 border border-white/20">
                             <AvatarImage src={m.profileImage} />
                             <AvatarFallback className="text-[10px]">{m.name?.charAt(0).toUpperCase()}</AvatarFallback>
                         </Avatar>
@@ -279,7 +307,11 @@ const CreateTrip = () => {
           </Card>
 
           <div className="pt-4">
-            <Button className="w-full h-14 text-lg gradient-primary shadow-lg hover:opacity-90 transition-opacity" onClick={handleCreateTrip} disabled={isLoading}>
+            <Button 
+                className="w-full h-14 text-lg gradient-primary shadow-lg hover:opacity-90 transition-opacity" 
+                onClick={handleCreateTrip} 
+                disabled={isLoading}
+            >
               {isLoading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating Trip...</> : "Create Trip"}
             </Button>
           </div>

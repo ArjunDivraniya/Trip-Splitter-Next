@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   ArrowLeft, 
   Plus, 
@@ -23,7 +25,9 @@ import {
   MessageCircle, 
   ClipboardList, 
   CheckSquare, 
-  Flag 
+  Flag,
+  UserPlus,
+  Loader2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -38,6 +42,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // --- Icons & Colors Helper ---
 const categoryIcons: Record<string, any> = {
@@ -61,29 +74,37 @@ const categoryColors: Record<string, string> = {
 const TripOverview = () => {
   const router = useRouter();
   const params = useParams();
-  const id = params.id; // Trip ID from URL
+  const id = params.id; 
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [ending, setEnding] = useState(false);
+  
+  // Add Member State
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
 
   // --- Fetch Real Trip Data ---
-  useEffect(() => {
-    const fetchTripDetails = async () => {
-      try {
-        const res = await fetch(`/api/trips/${id}`);
-        if (!res.ok) throw new Error("Failed to load trip");
-        
-        const data = await res.json();
-        setTrip(data.data);
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to load trip details");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchTripDetails = async () => {
+    try {
+      const res = await fetch(`/api/trips/${id}`);
+      if (!res.ok) throw new Error("Failed to load trip");
+      
+      const data = await res.json();
+      setTrip(data.data);
+      
+      // Debugging: Check if isCreator is coming through
+      console.log("Is Creator?", data.data.isCreator); 
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load trip details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (id) fetchTripDetails();
   }, [id]);
 
@@ -94,7 +115,7 @@ const TripOverview = () => {
         const res = await fetch(`/api/trips/${id}/end`, { method: "POST" });
         if (res.ok) {
             toast.success("Trip marked as completed");
-            setTrip((prev: any) => ({ ...prev, status: "completed" })); // Optimistic update
+            setTrip((prev: any) => ({ ...prev, status: "completed" })); 
         } else {
             const data = await res.json();
             toast.error(data.message || "Only admin can end trip");
@@ -106,12 +127,37 @@ const TripOverview = () => {
     }
   };
 
+  // --- Add Member Handler ---
+  const handleAddMember = async () => {
+    if (!newMemberEmail) return;
+    setAddingMember(true);
+    try {
+        const res = await fetch(`/api/trips/${id}/add-member`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: newMemberEmail })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            toast.success("Invitation sent!");
+            setNewMemberEmail("");
+            setIsAddMemberOpen(false);
+            fetchTripDetails(); // Refresh list to show new invited member
+        } else {
+            toast.error(data.message || "Failed to add member");
+        }
+    } catch (e) {
+        toast.error("Error adding member");
+    } finally {
+        setAddingMember(false);
+    }
+  };
+
   const CategoryIcon = (category: string) => {
-    // Handle custom categories gracefully
     const key = category ? category.toLowerCase() : "other";
     const Icon = categoryIcons[key] || Receipt;
     const colorClass = categoryColors[key] || "text-gray-500 bg-gray-100";
-    
     return (
       <div className={`h-10 w-10 rounded-full flex items-center justify-center ${colorClass}`}>
         <Icon className="h-5 w-5" />
@@ -119,7 +165,6 @@ const TripOverview = () => {
     );
   };
 
-  // --- Loading State ---
   if (loading) {
     return (
         <div className="min-h-screen bg-background p-4 space-y-6">
@@ -141,14 +186,15 @@ const TripOverview = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       
-      {/* 1. Header (Back Button & End Trip) */}
+      {/* Header */}
       <header className="bg-card border-b border-border/50 sticky top-0 z-10 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Button variant="ghost" onClick={() => router.push("/dashboard")} className="gap-2">
             <ArrowLeft className="h-5 w-5" /> Back to Dashboard
           </Button>
 
-          {/* Admin End Trip Button - Only shows if you are Creator AND trip is Active */}
+          {/* Admin End Trip Button */}
+          {/* Condition: Must be creator AND trip must be active */}
           {trip.isCreator && trip.status !== "completed" && (
              <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -175,7 +221,7 @@ const TripOverview = () => {
         </div>
       </header>
 
-      {/* 2. Trip Info Banner */}
+      {/* Trip Info Banner */}
       <div className="bg-primary/5 py-8">
         <div className="container mx-auto px-4">
           <div className="flex items-start justify-between mb-4">
@@ -218,17 +264,12 @@ const TripOverview = () => {
         </div>
       </div>
 
-      {/* 3. Main Content Area */}
+      {/* Main Content Area */}
       <div className="container mx-auto px-4 py-6">
         
-        {/* --- QUICK ACTIONS (4 Columns) --- */}
+        {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-             
-             {/* Analytics Card */}
-             <Card 
-                className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-blue-500" 
-                onClick={() => router.push(`/trip/${id}/analytics`)}
-             >
+             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-blue-500" onClick={() => router.push(`/trip/${id}/analytics`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                         <BarChart3 className="h-5 w-5 text-blue-600" />
@@ -238,12 +279,7 @@ const TripOverview = () => {
                     </div>
                 </CardContent>
              </Card>
-
-             {/* Group Chat Card */}
-             <Card 
-                className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-green-500" 
-                onClick={() => router.push(`/trip/${id}/chat`)}
-             >
+             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-green-500" onClick={() => router.push(`/trip/${id}/chat`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                         <MessageCircle className="h-5 w-5 text-green-600" />
@@ -253,12 +289,7 @@ const TripOverview = () => {
                     </div>
                 </CardContent>
              </Card>
-
-             {/* Itinerary Card */}
-             <Card 
-                className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-orange-500" 
-                onClick={() => router.push(`/trip/${id}/itinerary`)}
-             >
+             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-orange-500" onClick={() => router.push(`/trip/${id}/itinerary`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
                         <ClipboardList className="h-5 w-5 text-orange-600" />
@@ -268,12 +299,7 @@ const TripOverview = () => {
                     </div>
                 </CardContent>
              </Card>
-
-             {/* Packing List Card */}
-             <Card 
-                className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-purple-500" 
-                onClick={() => router.push(`/trip/${id}/packing-list`)}
-             >
+             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-purple-500" onClick={() => router.push(`/trip/${id}/packing-list`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
                         <CheckSquare className="h-5 w-5 text-purple-600" />
@@ -285,7 +311,7 @@ const TripOverview = () => {
              </Card>
         </div>
 
-        {/* 4. Tabs Section */}
+        {/* Tabs Section */}
         <Tabs defaultValue="expenses" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
@@ -300,26 +326,17 @@ const TripOverview = () => {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
-                      {/* Icon */}
                       {CategoryIcon(expense.category)}
-                      
                       <div>
-                        {/* Title */}
                         <h3 className="font-semibold text-foreground text-base">{expense.title}</h3>
-                        
-                        {/* Paid By Line */}
                         <p className="text-sm text-muted-foreground mt-1">
                           Paid by <span className="font-medium text-foreground">{expense.paidBy}</span> • ₹{expense.amount}
                         </p>
-                        
-                        {/* Split Among Line */}
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                           Split among: <span className="italic">{expense.splitNames}</span>
                         </p>
                       </div>
                     </div>
-                    
-                    {/* Per Person Amount (Right Side) */}
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground mb-1">Per person</p>
                       <p className="font-bold text-lg text-foreground">₹{expense.perPerson}</p>
@@ -330,12 +347,51 @@ const TripOverview = () => {
             )) : (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
                     <p className="text-muted-foreground">No expenses added yet.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Tap the + button to add one!</p>
                 </div>
             )}
           </TabsContent>
 
           {/* --- MEMBERS TAB --- */}
           <TabsContent value="members" className="space-y-4 animate-fade-in">
+            
+            {/* --- ADD MEMBER BUTTON (Admin Only & Active Trip) --- */}
+            {trip.isCreator && trip.status !== "completed" && (
+                <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full border-dashed border-2 h-12 gap-2 mb-4 hover:bg-accent">
+                            <UserPlus className="h-4 w-4" /> Add New Member
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Invite Friend</DialogTitle>
+                            <DialogDescription>
+                                Enter the email address of the person you want to invite.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Email Address</Label>
+                                <Input 
+                                    type="email"
+                                    placeholder="friend@example.com" 
+                                    value={newMemberEmail}
+                                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsAddMemberOpen(false)}>Cancel</Button>
+                            <Button onClick={handleAddMember} disabled={addingMember}>
+                                {addingMember ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Send Invite"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {/* Member List */}
             {trip.members.map((member: any) => (
               <Card key={member.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4 flex items-center justify-between">
@@ -347,6 +403,17 @@ const TripOverview = () => {
                       <div>
                         <p className="font-semibold">{member.name}</p>
                         <p className="text-xs text-muted-foreground">{member.email}</p>
+                        {/* Status Badges */}
+                        {member.status === 'invited' && (
+                            <Badge variant="outline" className="mt-1 text-[10px] h-5 bg-yellow-50 text-yellow-700 border-yellow-200">
+                                Pending Invite
+                            </Badge>
+                        )}
+                        {member.status === 'joined' && (
+                            <Badge variant="outline" className="mt-1 text-[10px] h-5 bg-green-50 text-green-700 border-green-200">
+                                Joined
+                            </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -377,7 +444,7 @@ const TripOverview = () => {
         </Tabs>
       </div>
 
-      {/* 5. Floating Action Button (Add Expense) - Only if Active */}
+      {/* 5. Floating Action Button (Add Expense) */}
       {trip.status !== "completed" && (
         <Button
             size="lg"
