@@ -13,7 +13,7 @@ const ExpenseSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ["food", "travel", "hotel", "shopping", "entertainment", "other"],
+    // REMOVED ENUM to allow custom categories from "Other" input
     default: "other",
   },
   paidBy: {

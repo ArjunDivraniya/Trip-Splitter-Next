@@ -30,8 +30,9 @@ const AddExpense = () => {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("food");
+  const [customCategory, setCustomCategory] = useState(""); // New state for "Other"
   const [paidBy, setPaidBy] = useState("");
-  const [splitBetween, setSplitBetween] = useState<string[]>([]); // Array of member IDs
+  const [splitBetween, setSplitBetween] = useState<string[]>([]);
 
   // Fetch Trip Members
   useEffect(() => {
@@ -41,10 +42,10 @@ const AddExpense = () => {
         const data = await res.json();
         if (res.ok) {
           setMembers(data.data.members);
-          // Default: Current user pays (need logic to find current user, here we pick first)
+          // Default: First member pays & split all
           if (data.data.members.length > 0) {
              setPaidBy(data.data.members[0].id);
-             setSplitBetween(data.data.members.map((m: any) => m.id)); // Default: Split all
+             setSplitBetween(data.data.members.map((m: any) => m.id)); 
           }
         }
       } catch (error) {
@@ -66,8 +67,13 @@ const AddExpense = () => {
   };
 
   const handleAddExpense = async () => {
-    if (!title || !amount || !paidBy || splitBetween.length === 0) {
-      toast.error("Please fill all fields and select members to split with.");
+    // Determine final category (Preset or Custom)
+    const finalCategory = category === "other" && customCategory.trim() 
+        ? customCategory.trim() 
+        : category;
+
+    if (!title || !amount || !paidBy || splitBetween.length === 0 || !finalCategory) {
+      toast.error("Please fill all fields and select members.");
       return;
     }
 
@@ -80,7 +86,7 @@ const AddExpense = () => {
           tripId,
           title,
           amount,
-          category,
+          category: finalCategory, // Send the resolved category
           paidBy,
           splitBetween
         }),
@@ -90,7 +96,7 @@ const AddExpense = () => {
       if (!res.ok) throw new Error(data.message);
 
       toast.success("Expense added successfully!");
-      router.push(`/trip/${tripId}`); // Go back to overview
+      router.push(`/trip/${tripId}`); 
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -142,7 +148,7 @@ const AddExpense = () => {
                 />
             </div>
 
-            {/* Category */}
+            {/* Category Dropdown */}
             <div className="space-y-2">
                 <Label>Category</Label>
                 <Select value={category} onValueChange={setCategory}>
@@ -155,10 +161,23 @@ const AddExpense = () => {
                         <SelectItem value="hotel">Accommodation</SelectItem>
                         <SelectItem value="shopping">Shopping</SelectItem>
                         <SelectItem value="entertainment">Entertainment</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="other">Other / Custom</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
+
+            {/* Custom Category Input (Only shows if "Other" is selected) */}
+            {category === "other" && (
+                <div className="space-y-2 animate-fade-in">
+                    <Label>Custom Category Name</Label>
+                    <Input 
+                        placeholder="e.g. Souvenirs, Tips" 
+                        value={customCategory} 
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        className="h-12"
+                    />
+                </div>
+            )}
 
             {/* Paid By */}
             <div className="space-y-2">

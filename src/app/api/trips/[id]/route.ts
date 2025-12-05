@@ -21,10 +21,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // 2. Fetch Expenses with deep population
     const expenses = await Expense.find({ trip: id })
       .populate("paidBy", "name")
-      .populate("splitBetween", "name") // Fetch names of split members
+      .populate("splitBetween", "name") 
       .sort({ date: -1 });
 
-    // 3. Calculate Balances (Logic remains same as before)
+    // 3. Calculate Balances
     let totalTripExpense = 0;
     const memberBalances: Record<string, number> = {};
 
@@ -49,9 +49,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       });
     });
 
-    // 4. Format Expenses for UI (Specific Format Requested)
+    // 4. Format Expenses
     const formattedExpenses = expenses.map((e: any) => {
-      const splitNames = e.splitBetween.map((u: any) => u.name.split(" ")[0]); // Get first names
+      const splitNames = e.splitBetween.map((u: any) => u.name.split(" ")[0]); 
       const perPerson = e.amount / (e.splitBetween.length || 1);
 
       return {
@@ -59,26 +59,27 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         title: e.title,
         amount: e.amount,
         category: e.category,
-        paidBy: e.paidBy.name, // Name of payer
-        splitNames: splitNames.join(", "), // "Arjun, Krish, Priya"
-        perPerson: Math.round(perPerson), // 100
+        paidBy: e.paidBy.name, 
+        splitNames: splitNames.join(", "),
+        perPerson: Math.round(perPerson),
         date: new Date(e.date).toLocaleDateString(),
       };
     });
 
-    // Format Members
+    // 5. Format Members & FIX DUPLICATES
     const formattedMembers = trip.members.map((m: any) => ({
-      id: m.userId?._id || "unknown",
+      id: m.userId?._id.toString() || "unknown",
       name: m.userId?.name || m.email,
       avatar: m.userId?.profileImage || "",
       balance: memberBalances[m.userId?._id.toString()] || 0
     }));
 
-    // Add creator to members list if not there (for dropdowns)
+    // Check if creator is already in the list (Robust String Comparison)
     const isCreatorInMembers = formattedMembers.some((m: any) => m.id === creatorId);
+    
     if (!isCreatorInMembers) {
         formattedMembers.push({
-            id: trip.createdBy._id,
+            id: creatorId,
             name: trip.createdBy.name,
             avatar: trip.createdBy.profileImage,
             balance: memberBalances[creatorId] || 0
