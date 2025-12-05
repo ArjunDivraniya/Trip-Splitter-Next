@@ -1,54 +1,32 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import Message from "@/models/Message";
+import Trip from "@/models/Trip";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
-// GET Messages
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } | Promise<{ id: string }> } // Accept both plain params or Promise
-) {
-  try {
-    await dbConnect();
-    await getDataFromToken(request);
-
-    // Await the params promise to get the ID
-    const { id } = await context.params;
-
-    const messages = await Message.find({ trip: id })
-      .sort({ createdAt: 1 })
-      .populate("sender", "name profileImage");
-
-    return NextResponse.json({ success: true, data: messages });
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
-  }
-}
-
-// POST Message
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } | Promise<{ id: string }> } // Accept both plain params or Promise
+  context: { params: Promise<{ id: string }> } // CHANGED: params is a Promise
 ) {
   try {
     await dbConnect();
     const userId = await getDataFromToken(request);
     
-    // Await the params promise to get the ID
+    // Await params to get ID
     const { id } = await context.params;
-    
-    const { content } = await request.json();
 
-    const newMessage = await Message.create({
-      trip: id,
-      sender: userId,
-      content
-    });
+    const trip = await Trip.findById(id);
+    if (!trip) return NextResponse.json({ message: "Trip not found" }, { status: 404 });
 
-    // Populate sender details immediately for the UI
-    await newMessage.populate("sender", "name profileImage");
+    // Check if user is the Creator
+    if (trip.createdBy.toString() !== userId) {
+      return NextResponse.json({ message: "Only the admin can end this trip" }, { status: 403 });
+    }
 
-    return NextResponse.json({ success: true, data: newMessage });
+    trip.status = "completed";
+    await trip.save();
+
+    return NextResponse.json({ success: true, message: "Trip ended successfully", data: trip });
+
   } catch (error: any) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
