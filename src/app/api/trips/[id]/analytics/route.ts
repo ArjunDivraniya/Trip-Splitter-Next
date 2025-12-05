@@ -1,14 +1,18 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Expense from "@/models/Expense";
-import Trip from "@/models/Trip";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> } // Correct type: params is a Promise
+) {
   try {
     await dbConnect();
     await getDataFromToken(request);
-    const { id } = await params;
+    
+    // Await params to get the id
+    const { id } = await context.params;
 
     const expenses = await Expense.find({ trip: id }).populate("paidBy", "name");
 
