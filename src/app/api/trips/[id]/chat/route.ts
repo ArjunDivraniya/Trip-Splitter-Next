@@ -4,11 +4,16 @@ import Message from "@/models/Message";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
 // GET Messages
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> } // Changed: params is a Promise
+) {
   try {
     await dbConnect();
     await getDataFromToken(request);
-    const { id } = await params;
+
+    // Await the params promise to get the ID
+    const { id } = await context.params;
 
     const messages = await Message.find({ trip: id })
       .sort({ createdAt: 1 })
@@ -21,11 +26,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // POST Message
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> } // Changed: params is a Promise
+) {
   try {
     await dbConnect();
     const userId = await getDataFromToken(request);
-    const { id } = await params;
+    
+    // Await the params promise to get the ID
+    const { id } = await context.params;
+    
     const { content } = await request.json();
 
     const newMessage = await Message.create({
