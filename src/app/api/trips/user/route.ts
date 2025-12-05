@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     await dbConnect();
     const userId = getDataFromToken(request);
 
-    // 1. Find trips where user is creator OR a member
+    // Find trips
     const trips = await Trip.find({
       $or: [
         { createdBy: userId },
@@ -17,52 +17,44 @@ export async function GET(request: NextRequest) {
       ]
     })
     .sort({ createdAt: -1 })
-    .populate("members.userId", "name profileImage");
+    .populate("members.userId", "name profileImage"); // Populate for avatars
 
-    // 2. Fetch ALL expenses for these trips to calculate totals
+    // Calculate totals (Same as before)
     const tripIds = trips.map(t => t._id);
     const expenses = await Expense.find({ trip: { $in: tripIds } });
 
-    // 3. Process expenses to calculate totals & balances
     const tripStats: Record<string, { total: number, balance: number }> = {};
-
     expenses.forEach((expense) => {
         const tid = expense.trip.toString();
         if (!tripStats[tid]) tripStats[tid] = { total: 0, balance: 0 };
-
-        // Total Trip Expense
         tripStats[tid].total += expense.amount;
 
-        // User Balance Calculation
         const paidById = expense.paidBy.toString();
         const splitCount = expense.splitBetween.length;
         const splitAmount = expense.amount / (splitCount || 1);
 
-        // If current user paid, they "get back" this amount (Positive)
-        if (paidById === userId) {
-            tripStats[tid].balance += expense.amount;
-        }
-
-        // If current user is involved in split, they "owe" this share (Negative)
+        if (paidById === userId) tripStats[tid].balance += expense.amount;
         const isInSplit = expense.splitBetween.some((id: any) => id.toString() === userId);
-        if (isInSplit) {
-            tripStats[tid].balance -= splitAmount;
-        }
+        if (isInSplit) tripStats[tid].balance -= splitAmount;
     });
 
-    // 4. Merge stats into trip objects
+    // Format data with USER STATUS
     const tripsWithData = trips.map(trip => {
         const stats = tripStats[trip._id.toString()] || { total: 0, balance: 0 };
         
-        // Determine status based on dates
-        const now = new Date();
-        let status = "ongoing";
-        if (new Date(trip.endDate) < now) status = "completed";
-        
+        // Check current user's status in this trip
+        let userStatus = "joined"; // Default for creator
+        if (trip.createdBy.toString() !== userId) {
+            const memberRecord = trip.members.find((m: any) => m.userId?._id.toString() === userId);
+            userStatus = memberRecord ? memberRecord.status : "invited";
+        }
+
         return {
             ...trip.toObject(),
             totalExpense: stats.total,
-            yourBalance: Math.round(stats.balance) // Round for cleaner UI
+            yourBalance: Math.round(stats.balance),
+            userStatus: userStatus, // 'invited' or 'joined'
+            isAdmin: trip.createdBy.toString() === userId
         };
     });
 

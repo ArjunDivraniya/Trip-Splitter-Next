@@ -7,8 +7,37 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, MapPin, Calendar, Users, Receipt, DollarSign, ShoppingBag, Utensils, Hotel, Plane, BarChart3, MessageCircle, ClipboardList, CheckSquare } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Plus, 
+  MapPin, 
+  Calendar, 
+  Users, 
+  Receipt, 
+  DollarSign, 
+  ShoppingBag, 
+  Utensils, 
+  Hotel, 
+  Plane, 
+  BarChart3, 
+  MessageCircle, 
+  ClipboardList, 
+  CheckSquare, 
+  Flag 
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // --- Icons & Colors Helper ---
 const categoryIcons: Record<string, any> = {
@@ -36,6 +65,7 @@ const TripOverview = () => {
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [ending, setEnding] = useState(false);
 
   // --- Fetch Real Trip Data ---
   useEffect(() => {
@@ -48,6 +78,7 @@ const TripOverview = () => {
         setTrip(data.data);
       } catch (error) {
         console.error(error);
+        toast.error("Failed to load trip details");
       } finally {
         setLoading(false);
       }
@@ -56,9 +87,31 @@ const TripOverview = () => {
     if (id) fetchTripDetails();
   }, [id]);
 
+  // --- End Trip Handler ---
+  const handleEndTrip = async () => {
+    setEnding(true);
+    try {
+        const res = await fetch(`/api/trips/${id}/end`, { method: "POST" });
+        if (res.ok) {
+            toast.success("Trip marked as completed");
+            setTrip({ ...trip, status: "completed" }); // Optimistic update
+        } else {
+            const data = await res.json();
+            toast.error(data.message || "Only admin can end trip");
+        }
+    } catch (e) {
+        toast.error("Failed to end trip");
+    } finally {
+        setEnding(false);
+    }
+  };
+
   const CategoryIcon = (category: string) => {
-    const Icon = categoryIcons[category] || Receipt;
-    const colorClass = categoryColors[category] || "text-gray-500 bg-gray-100";
+    // Handle custom categories gracefully
+    const key = category ? category.toLowerCase() : "other";
+    const Icon = categoryIcons[key] || Receipt;
+    const colorClass = categoryColors[key] || "text-gray-500 bg-gray-100";
+    
     return (
       <div className={`h-10 w-10 rounded-full flex items-center justify-center ${colorClass}`}>
         <Icon className="h-5 w-5" />
@@ -88,12 +141,35 @@ const TripOverview = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       
-      {/* 1. Header (Back Button) */}
+      {/* 1. Header (Back Button & End Trip) */}
       <header className="bg-card border-b border-border/50 sticky top-0 z-10 backdrop-blur-sm bg-card/80">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Button variant="ghost" onClick={() => router.push("/dashboard")} className="gap-2">
-            <ArrowLeft className="h-5 w-5" /> Back to Dashboard
+            <ArrowLeft className="h-5 w-5" /> Back
           </Button>
+
+          {/* Admin End Trip Button - Only shows if you are Creator AND trip is Active */}
+          {trip.isCreator && trip.status !== "completed" && (
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="gap-2">
+                        <Flag className="h-4 w-4" /> End Trip
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>End this trip?</AlertDialogTitle>
+                        <AlertDialogDescription>This will mark the trip as completed. You can still view details but it will move to "Past Trips".</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleEndTrip} disabled={ending}>
+                            {ending ? "Ending..." : "End Trip"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+             </AlertDialog>
+          )}
         </div>
       </header>
 
@@ -115,7 +191,9 @@ const TripOverview = () => {
                 </div>
               </div>
             </div>
-            <Badge className="bg-green-500/10 text-green-600 border-green-200">Ongoing</Badge>
+            <Badge className={trip.status === "completed" ? "bg-gray-500 hover:bg-gray-500" : "bg-green-600 hover:bg-green-600"}>
+                {trip.status === "completed" ? "Completed" : "Ongoing"}
+            </Badge>
           </div>
 
           {/* Financial Summary Cards */}
@@ -141,7 +219,7 @@ const TripOverview = () => {
       {/* 3. Main Content Area */}
       <div className="container mx-auto px-4 py-6">
         
-        {/* --- QUICK ACTIONS (Updated to 4 Columns) --- */}
+        {/* --- QUICK ACTIONS (4 Columns) --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
              
              {/* Analytics Card */}
@@ -189,7 +267,7 @@ const TripOverview = () => {
                 </CardContent>
              </Card>
 
-             {/* Packing List Card (ADDED) */}
+             {/* Packing List Card */}
              <Card 
                 className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-purple-500" 
                 onClick={() => router.push(`/trip/${id}/packing-list`)}
@@ -255,7 +333,7 @@ const TripOverview = () => {
             )}
           </TabsContent>
 
-          {/* Members Tab */}
+          {/* --- MEMBERS TAB --- */}
           <TabsContent value="members" className="space-y-4 animate-fade-in">
             {trip.members.map((member: any) => (
               <Card key={member.id} className="hover:shadow-md transition-shadow">
@@ -283,7 +361,7 @@ const TripOverview = () => {
             ))}
           </TabsContent>
 
-          {/* Settle Up Tab */}
+          {/* --- SETTLE UP TAB --- */}
           <TabsContent value="settle" className="space-y-4 animate-fade-in">
             <Card className="bg-muted/30 border-dashed border-2">
               <CardContent className="p-8 text-center">
@@ -298,14 +376,16 @@ const TripOverview = () => {
         </Tabs>
       </div>
 
-      {/* 5. Floating Action Button (Add Expense) */}
-      <Button
-        size="lg"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg gradient-primary hover:opacity-90 transition-opacity z-50 text-white"
-        onClick={() => router.push(`/trip/${id}/add-expense`)}
-      >
-        <Plus className="h-6 w-6" />
-      </Button>
+      {/* 5. Floating Action Button (Add Expense) - Only if Active */}
+      {trip.status !== "completed" && (
+        <Button
+            size="lg"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg gradient-primary hover:opacity-90 transition-opacity z-50 text-white"
+            onClick={() => router.push(`/trip/${id}/add-expense`)}
+        >
+            <Plus className="h-6 w-6" />
+        </Button>
+      )}
     </div>
   );
 };

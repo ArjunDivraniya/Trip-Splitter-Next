@@ -19,6 +19,12 @@ const TripSchema = new mongoose.Schema({
     type: Date,
     required: [true, "Please provide an end date"],
   },
+  // Trip Status: 'active' or 'completed'
+  status: {
+    type: String,
+    enum: ["active", "completed"],
+    default: "active",
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -27,12 +33,12 @@ const TripSchema = new mongoose.Schema({
   members: [
     {
       email: { type: String, required: true },
-      // Optional: Link to a User ID if they already have an account
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, 
-      status: { type: String, default: "invited" }, // 'invited' | 'joined'
+      // Member Status: 'invited' (pending) or 'joined' (accepted)
+      status: { type: String, enum: ["invited", "joined"], default: "invited" }, 
     },
   ],
-  expenses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Expense" }], // For future use
+  expenses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Expense" }],
   createdAt: {
     type: Date,
     default: Date.now,
