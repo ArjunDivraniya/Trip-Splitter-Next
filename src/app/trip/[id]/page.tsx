@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, MapPin, Calendar, Users, Receipt, DollarSign, ShoppingBag, Utensils, Hotel, Plane, BarChart3, MessageCircle, ClipboardList } from "lucide-react";
+import { ArrowLeft, Plus, MapPin, Calendar, Users, Receipt, DollarSign, ShoppingBag, Utensils, Hotel, Plane, BarChart3, MessageCircle, ClipboardList, CheckSquare } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // --- Icons & Colors Helper ---
@@ -72,7 +72,8 @@ const TripOverview = () => {
         <div className="min-h-screen bg-background p-4 space-y-6">
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-48 w-full" />
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
+                <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-24 w-full" />
                 <Skeleton className="h-24 w-full" />
@@ -140,23 +141,20 @@ const TripOverview = () => {
       {/* 3. Main Content Area */}
       <div className="container mx-auto px-4 py-6">
         
-        {/* --- QUICK ACTIONS (These are the 3 cards you wanted back) --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* --- QUICK ACTIONS (Updated to 4 Columns) --- */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
              
              {/* Analytics Card */}
              <Card 
                 className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-blue-500" 
                 onClick={() => router.push(`/trip/${id}/analytics`)}
              >
-                <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <BarChart3 className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <p className="font-semibold">Analytics</p>
-                            <p className="text-xs text-muted-foreground">Spending charts</p>
-                        </div>
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-sm">Analytics</p>
                     </div>
                 </CardContent>
              </Card>
@@ -166,15 +164,12 @@ const TripOverview = () => {
                 className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-green-500" 
                 onClick={() => router.push(`/trip/${id}/chat`)}
              >
-                <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                            <MessageCircle className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                            <p className="font-semibold">Group Chat</p>
-                            <p className="text-xs text-muted-foreground">Discuss plans</p>
-                        </div>
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <MessageCircle className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-sm">Chat</p>
                     </div>
                 </CardContent>
              </Card>
@@ -184,15 +179,27 @@ const TripOverview = () => {
                 className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-orange-500" 
                 onClick={() => router.push(`/trip/${id}/itinerary`)}
              >
-                <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
-                            <ClipboardList className="h-5 w-5 text-orange-600" />
-                        </div>
-                        <div>
-                            <p className="font-semibold">Itinerary</p>
-                            <p className="text-xs text-muted-foreground">Day-wise plan</p>
-                        </div>
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                    <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                        <ClipboardList className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-sm">Itinerary</p>
+                    </div>
+                </CardContent>
+             </Card>
+
+             {/* Packing List Card (ADDED) */}
+             <Card 
+                className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-purple-500" 
+                onClick={() => router.push(`/trip/${id}/packing-list`)}
+             >
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                    <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                        <CheckSquare className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-sm">Packing</p>
                     </div>
                 </CardContent>
              </Card>
@@ -206,7 +213,7 @@ const TripOverview = () => {
             <TabsTrigger value="settle">Settle Up</TabsTrigger>
           </TabsList>
 
-          {/* --- EXPENSES TAB (Detailed Cards) --- */}
+          {/* --- EXPENSES TAB --- */}
           <TabsContent value="expenses" className="space-y-4 animate-fade-in">
             {trip.expenses.length > 0 ? trip.expenses.map((expense: any) => (
               <Card key={expense.id} className="hover:shadow-md transition-shadow">

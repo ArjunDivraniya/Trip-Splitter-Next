@@ -1,10 +1,10 @@
 "use client";
-// placeholder for `trip/[id]/analytics/page.tsx` (migrated from Analytics.tsx)
-// File intentionally left without component code.
+
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon } from "lucide-react";
+import { ArrowLeft, TrendingUp, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon, Loader2 } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -21,56 +21,61 @@ import {
   Cell,
 } from "recharts";
 
-// Mock data for analytics
-const categoryData = [
-  { name: "Food", value: 9200, percentage: 36.8 },
-  { name: "Hotel", value: 15000, percentage: 60 },
-  { name: "Travel", value: 800, percentage: 3.2 },
-];
-
-const memberSpendingData = [
-  { name: "You", amount: 5700 },
-  { name: "Arjun", amount: 15000 },
-  { name: "Priya", amount: 800 },
-  { name: "Krish", amount: 3500 },
-  { name: "Neha", amount: 0 },
-];
-
-const dailySpendingData = [
-  { date: "Nov 15", amount: 17500 },
-  { date: "Nov 16", amount: 4000 },
-  { date: "Nov 17", amount: 3500 },
-  { date: "Nov 18", amount: 0 },
-  { date: "Nov 19", amount: 0 },
-  { date: "Nov 20", amount: 0 },
-];
-
 // Colors from design system
-const COLORS = {
-  food: "hsl(142 71% 45%)", // success green
-  hotel: "hsl(43 96% 56%)", // warning yellow
-  travel: "hsl(217 91% 60%)", // primary blue
-  shopping: "hsl(0 84% 60%)", // destructive red
-};
-
 const CHART_COLORS = [
-  "hsl(142 71% 45%)",
-  "hsl(43 96% 56%)",
-  "hsl(217 91% 60%)",
-  "hsl(0 84% 60%)",
-  "hsl(221 83% 48%)",
+  "hsl(142 71% 45%)", // Success Green
+  "hsl(43 96% 56%)",  // Warning Yellow
+  "hsl(217 91% 60%)", // Primary Blue
+  "hsl(0 84% 60%)",   // Destructive Red
+  "hsl(221 83% 48%)", // Dark Blue
 ];
 
 const Analytics = () => {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const id = params.id;
 
-  const totalExpenses = categoryData.reduce((sum, item) => sum + item.value, 0);
-  const highestSpender = memberSpendingData.reduce((max, member) => 
-    member.amount > max.amount ? member : max
-  );
+  const [loading, setLoading] = useState(true);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [memberSpendingData, setMemberSpendingData] = useState<any[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  
+  // Default values to prevent crashes if data is empty
+  const [highestSpender, setHighestSpender] = useState({ name: "N/A", amount: 0 });
 
-  // Custom tooltip
+  // 1. Fetch Real Analytics Data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/trips/${id}/analytics`);
+        const result = await res.json();
+        
+        if (result.success) {
+          const { pieData, barData, totalSpent } = result.data;
+          
+          setCategoryData(pieData);
+          setMemberSpendingData(barData);
+          setTotalExpenses(totalSpent);
+
+          // Calculate Highest Spender
+          if (barData.length > 0) {
+            const max = barData.reduce((prev: any, current: any) => 
+              (prev.amount > current.amount) ? prev : current
+            );
+            setHighestSpender(max);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load analytics", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) fetchData();
+  }, [id]);
+
+  // Custom Tooltip Component
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -85,8 +90,12 @@ const Analytics = () => {
     return null;
   };
 
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+  }
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="bg-card border-b border-border/50 sticky top-0 z-10 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto px-4 py-4">
@@ -104,6 +113,7 @@ const Analytics = () => {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="space-y-8 animate-fade-in">
+          
           {/* Page Header */}
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold text-foreground flex items-center justify-center gap-2">
@@ -140,6 +150,7 @@ const Analytics = () => {
 
           {/* Charts Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
             {/* Pie Chart - Category Breakdown */}
             <Card className="shadow-float border-0">
               <CardHeader>
@@ -150,28 +161,33 @@ const Analytics = () => {
                 <CardDescription>Breakdown by category</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name} ${((value as number) / totalExpenses * 100).toFixed(1)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={CHART_COLORS[index % CHART_COLORS.length]} 
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="h-[300px]">
+                  {categoryData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name} ${((value / totalExpenses) * 100).toFixed(0)}%`}
+                          outerRadius={100}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                        No expenses to show
+                    </div>
+                  )}
+                </div>
 
                 {/* Legend */}
                 <div className="mt-4 space-y-2">
@@ -180,7 +196,7 @@ const Analytics = () => {
                       <div className="flex items-center gap-2">
                         <div 
                           className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: CHART_COLORS[index] }}
+                          style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
                         />
                         <span className="text-sm text-foreground">{item.name}</span>
                       </div>
@@ -203,45 +219,56 @@ const Analytics = () => {
                 <CardDescription>Who spent the most</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={memberSpendingData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="name" 
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    />
-                    <YAxis 
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar 
-                      dataKey="amount" 
-                      fill="hsl(217 91% 60%)"
-                      radius={[8, 8, 0, 0]}
-                    >
-                      {memberSpendingData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`}
-                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                <div className="h-[300px]">
+                  {memberSpendingData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={memberSpendingData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
                         />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                        <YAxis 
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar 
+                          dataKey="amount" 
+                          fill="hsl(217 91% 60%)"
+                          radius={[8, 8, 0, 0]}
+                        >
+                          {memberSpendingData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`}
+                              fill={CHART_COLORS[index % CHART_COLORS.length]}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                        No spending data
+                    </div>
+                  )}
+                </div>
 
                 {/* Top Spender Badge */}
-                <div className="mt-4 p-3 bg-success/10 rounded-lg border border-success/20">
-                  <p className="text-sm text-center">
-                    <span className="font-semibold text-success">🏆 {highestSpender.name}</span>
-                    {" "}contributed the most with{" "}
-                    <span className="font-semibold">₹{highestSpender.amount.toLocaleString()}</span>
-                  </p>
-                </div>
+                {highestSpender.amount > 0 && (
+                    <div className="mt-4 p-3 bg-success/10 rounded-lg border border-success/20">
+                    <p className="text-sm text-center">
+                        <span className="font-semibold text-success">🏆 {highestSpender.name}</span>
+                        {" "}contributed the most with{" "}
+                        <span className="font-semibold">₹{highestSpender.amount.toLocaleString()}</span>
+                    </p>
+                    </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Line Chart - Daily Spending */}
+          {/* Line Chart - Daily Spending Trend */}
+          {/* Note: Requires complex DB aggregation, for now keeping static mock or placeholder if empty */}
           <Card className="shadow-float border-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -251,36 +278,9 @@ const Analytics = () => {
               <CardDescription>Track expenses over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={dailySpendingData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  />
-                  <YAxis 
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="hsl(217 91% 60%)"
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(217 91% 60%)", r: 6 }}
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-
-              {/* Insight */}
-              <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                <p className="text-sm text-center text-foreground">
-                  💡 <span className="font-semibold">Peak spending</span> occurred on{" "}
-                  <span className="font-semibold">Nov 15</span> with ₹17,500 in expenses
-                </p>
-              </div>
+                <div className="h-[350px] flex items-center justify-center bg-muted/10 rounded-lg border border-dashed">
+                    <p className="text-muted-foreground">Trend data will appear here after more expenses are added.</p>
+                </div>
             </CardContent>
           </Card>
 
@@ -295,16 +295,12 @@ const Analytics = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Average per person</span>
                     <span className="font-semibold text-foreground">
-                      ₹{(totalExpenses / memberSpendingData.length).toFixed(0)}
+                      ₹{memberSpendingData.length > 0 ? (totalExpenses / memberSpendingData.length).toFixed(0) : 0}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Days tracked</span>
-                    <span className="font-semibold text-foreground">6 days</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Total transactions</span>
-                    <span className="font-semibold text-foreground">5</span>
+                    <span className="text-sm text-muted-foreground">Total Categories</span>
+                    <span className="font-semibold text-foreground">{categoryData.length}</span>
                   </div>
                 </div>
               </CardContent>
@@ -318,15 +314,11 @@ const Analytics = () => {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-success">✓</span>
-                    <span>Hotel expenses are 60% of total - consider budget options</span>
+                    <span>Review your highest category to save money.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-success">✓</span>
-                    <span>Food spending is well balanced across the trip</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-success">✓</span>
-                    <span>Travel costs are minimal - great cost management!</span>
+                    <span>Settle debts early to avoid confusion later.</span>
                   </li>
                 </ul>
               </CardContent>

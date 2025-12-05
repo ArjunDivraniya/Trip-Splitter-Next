@@ -1,275 +1,148 @@
 "use client";
-// placeholder for `trip/[id]/chat/page.tsx` (migrated from Chat.tsx)
-// File intentionally left without component code.
-import { useState } from "react";
+
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Send, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-
-interface Message {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  text?: string;
-  expenseData?: {
-    title: string;
-    amount: number;
-    category: string;
-  };
-  timestamp: Date;
-  isSelf: boolean;
-}
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const Chat = () => {
   const router = useRouter();
-  const { id } = useParams();
-  const [message, setMessage] = useState("");
-  
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      userId: "1",
-      userName: "Arjun",
-      userAvatar: "",
-      text: "Hey everyone! Excited for the trip!",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      isSelf: false,
-    },
-    {
-      id: "2",
-      userId: "2",
-      userName: "Priya",
-      userAvatar: "",
-      text: "Can't wait! Should we book the hotel?",
-      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
-      isSelf: false,
-    },
-    {
-      id: "3",
-      userId: "current",
-      userName: "You",
-      userAvatar: "",
-      expenseData: {
-        title: "Hotel Booking",
-        amount: 5000,
-        category: "hotel",
-      },
-      timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      isSelf: true,
-    },
-    {
-      id: "4",
-      userId: "3",
-      userName: "Krish",
-      userAvatar: "",
-      text: "Thanks for booking! I'll transfer my share",
-      timestamp: new Date(Date.now() - 30 * 60 * 1000),
-      isSelf: false,
-    },
-    {
-      id: "5",
-      userId: "current",
-      userName: "You",
-      userAvatar: "",
-      text: "No worries! We can settle up at the end",
-      timestamp: new Date(Date.now() - 15 * 60 * 1000),
-      isSelf: true,
-    },
-  ]);
+  const params = useParams();
+  const id = params.id;
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const tripMembers = [
-    { id: "1", name: "Arjun", avatar: "" },
-    { id: "2", name: "Priya", avatar: "" },
-    { id: "3", name: "Krish", avatar: "" },
-    { id: "current", name: "You", avatar: "" },
-  ];
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      userId: "current",
-      userName: "You",
-      userAvatar: "",
-      text: message,
-      timestamp: new Date(),
-      isSelf: true,
+  // 1. Fetch User ID (to distinguish own messages)
+  useEffect(() => {
+    const fetchUser = async () => {
+      const res = await fetch("/api/user/me");
+      const data = await res.json();
+      if (res.ok) setCurrentUserId(data.data._id);
     };
+    fetchUser();
+  }, []);
 
-    setMessages([...messages, newMessage]);
-    setMessage("");
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  // 2. Fetch Messages
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch(`/api/trips/${id}/chat`);
+      const data = await res.json();
+      if (data.success) {
+        setMessages(data.data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
-  };
+  useEffect(() => {
+    if (id) {
+      fetchMessages();
+      // Simple polling every 5 seconds for updates
+      const interval = setInterval(fetchMessages, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [id]);
 
-  const getCategoryIcon = (category: string) => {
-    const icons: Record<string, string> = {
-      food: "🍽️",
-      travel: "✈️",
-      hotel: "🏨",
-      shopping: "🛍️",
-      other: "📝",
-    };
-    return icons[category] || "💰";
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!newMessage.trim()) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/trips/${id}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newMessage }),
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setMessages([...messages, data.data]);
+        setNewMessage("");
+      }
+    } catch (error) {
+      toast.error("Failed to send message");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm border-b border-border shadow-sm">
-        <div className="container max-w-4xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push(`/trip/${id}`)}
-              className="shrink-0"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2 flex-1">
-              <div className="flex -space-x-2">
-                {tripMembers.slice(0, 3).map((member, idx) => (
-                  <Avatar key={member.id} className="h-10 w-10 border-2 border-card">
-                    <AvatarImage src={member.avatar} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {member.name.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              <div>
-                <h1 className="font-semibold text-foreground">Goa Beach Trip</h1>
-                <p className="text-xs text-muted-foreground">
-                  {tripMembers.length} members
-                </p>
-              </div>
-            </div>
+      <header className="bg-card border-b p-4 flex-none">
+        <div className="container mx-auto flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="font-bold text-lg">Group Chat</h1>
+            <p className="text-xs text-muted-foreground">Discuss plans & expenses</p>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Messages Area */}
-      <div className="container max-w-4xl mx-auto px-4 pb-24">
-        <ScrollArea className="h-[calc(100vh-180px)] py-4">
-          <div className="space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-2 ${msg.isSelf ? "flex-row-reverse" : "flex-row"}`}
-              >
-                {!msg.isSelf && (
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={msg.userAvatar} />
-                    <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-                      {msg.userName.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-
-                <div className={`flex flex-col ${msg.isSelf ? "items-end" : "items-start"} max-w-[75%]`}>
-                  {!msg.isSelf && (
-                    <span className="text-xs font-medium text-muted-foreground mb-1 px-2">
-                      {msg.userName}
-                    </span>
-                  )}
-
-                  {msg.expenseData ? (
-                    <Card className="p-3 bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-                      <div className="flex items-start gap-3">
-                        <div className="text-2xl">{getCategoryIcon(msg.expenseData.category)}</div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-foreground">
-                            Expense Added
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {msg.expenseData.title}
-                          </p>
-                          <p className="text-lg font-bold text-success mt-1">
-                            ₹{msg.expenseData.amount.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2 text-right">
-                        {formatTime(msg.timestamp)}
-                      </div>
-                    </Card>
-                  ) : (
-                    <div
-                      className={`rounded-2xl px-4 py-2 shadow-sm ${
-                        msg.isSelf
-                          ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : "bg-card text-card-foreground rounded-tl-sm border border-border"
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
-                      <div
-                        className={`text-xs mt-1 ${
-                          msg.isSelf ? "text-primary-foreground/70" : "text-muted-foreground"
-                        }`}
-                      >
-                        {formatTime(msg.timestamp)}
-                      </div>
-                    </div>
-                  )}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/20">
+        {loading ? (
+          <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-muted-foreground py-10">No messages yet. Say hi! 👋</div>
+        ) : (
+          messages.map((msg) => {
+            const isMe = msg.sender._id === currentUserId;
+            return (
+              <div key={msg._id} className={`flex gap-3 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                <Avatar className="h-8 w-8 mt-1">
+                  <AvatarImage src={msg.sender.profileImage} />
+                  <AvatarFallback>{msg.sender.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                  isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border rounded-tl-none"
+                }`}>
+                  {!isMe && <p className="text-[10px] opacity-70 mb-1 font-semibold">{msg.sender.name}</p>}
+                  <p>{msg.content}</p>
+                  <p className={`text-[10px] mt-1 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
-
-                {msg.isSelf && <div className="w-8" />}
               </div>
-            ))}
-          </div>
-        </ScrollArea>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border shadow-lg">
-        <div className="container max-w-4xl mx-auto px-4 py-3">
-          <div className="flex gap-2 items-end">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 text-muted-foreground hover:text-primary"
-            >
-              <ImageIcon className="h-5 w-5" />
-            </Button>
-            <div className="flex-1 bg-background rounded-full border border-input px-4 py-2">
-              <Input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
-                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 py-0 h-auto bg-transparent"
-              />
-            </div>
-            <Button
-              onClick={handleSendMessage}
-              size="icon"
-              className="shrink-0 rounded-full h-10 w-10"
-              disabled={!message.trim()}
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
+      <div className="p-4 bg-card border-t flex-none">
+        <form 
+          className="flex gap-2 container mx-auto max-w-2xl"
+          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+        >
+          <Input 
+            placeholder="Type a message..." 
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="flex-1"
+          />
+          <Button type="submit" size="icon" disabled={sending || !newMessage.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
       </div>
     </div>
   );
