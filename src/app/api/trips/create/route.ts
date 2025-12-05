@@ -3,6 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import Trip from "@/models/Trip";
 import User from "@/models/User";
 import { getDataFromToken } from "@/lib/getDataFromToken";
+import { sendNotification } from "@/lib/notification"; // Import Helper
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,18 +16,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Please fill in all required fields" }, { status: 400 });
     }
 
-    // Process Members
-    // Expecting members to be array of { email, userId (optional) }
     const memberList = members.map((m: any) => ({
       email: m.email,
-      userId: m.userId || null, // Link to user ID if available
+      userId: m.userId || null,
       status: "invited"
     }));
 
-    // Add creator
     const creator = await User.findById(userId);
     if (creator) {
-      // Check if creator is already in the list to avoid duplicates
       const isCreatorAdded = memberList.some((m: any) => m.email === creator.email);
       if (!isCreatorAdded) {
           memberList.push({ email: creator.email, userId: creator._id, status: "joined" });
@@ -43,6 +40,23 @@ export async function POST(request: NextRequest) {
     });
 
     const savedTrip = await newTrip.save();
+
+    // --- TRIGGER NOTIFICATION ---
+    // Get all valid user IDs excluding the creator
+    const recipientIds = memberList
+      .filter((m: any) => m.userId && m.userId.toString() !== userId)
+      .map((m: any) => m.userId);
+
+    if (recipientIds.length > 0) {
+      await sendNotification(
+        recipientIds,
+        userId,
+        savedTrip._id,
+        `Invited you to join "${name}" to ${destination}`,
+        "invite"
+      );
+    }
+    // ---------------------------
 
     return NextResponse.json({
       message: "Trip created successfully",
