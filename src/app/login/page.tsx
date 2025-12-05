@@ -27,7 +27,6 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Call your real backend API
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,10 +39,7 @@ const Login = () => {
         throw new Error(data.message || "Login failed");
       }
 
-      toast.success("Login successful!");
-      
-      // Force a router refresh to update server components/cookies
-      router.refresh();
+      toast.success("Welcome back!");
       router.push("/dashboard");
       
     } catch (error: any) {

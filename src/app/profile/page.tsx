@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, User, Mail, Edit2, Save, TrendingUp, MapPin, QrCode, Settings as SettingsIcon, Camera, Phone, Loader2, Upload, CreditCard } from "lucide-react";
+import { ArrowLeft, User, Mail, Edit2, Save, TrendingUp, MapPin, QrCode, Settings as SettingsIcon, Camera, Phone, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton"; // Ensure you have this component
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface UserData {
   _id: string;
@@ -19,7 +19,7 @@ interface UserData {
   phone: string;
   profileImage: string;
   qrCode: string;
-  upiId?: string; // Added field based on usage
+  upiId?: string;
 }
 
 const Profile = () => {
@@ -47,16 +47,18 @@ const Profile = () => {
     const fetchUser = async () => {
       try {
         const res = await fetch("/api/user/me");
-        const data = await res.json();
-
+        
+        // If 401/404, it means the cookie is missing or invalid
         if (!res.ok) {
-          throw new Error(data.message || "Failed to fetch user");
+           const data = await res.json();
+           throw new Error(data.message || "Failed to fetch");
         }
+
+        const data = await res.json();
         setUser(data.data);
       } catch (error) {
-        console.error(error);
-        // Don't redirect immediately to avoid loops, just show error
-        toast.error("Please log in again.");
+        console.error("Profile Error:", error);
+        toast.error("Session expired. Please log in.");
         router.push("/login");
       } finally {
         setIsLoading(false);
@@ -66,10 +68,12 @@ const Profile = () => {
     fetchUser();
   }, [router]);
 
+  // Handle Input Change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUser({ ...user, [e.target.id]: e.target.value });
   };
 
+  // Handle Save (Update Text Data)
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -84,8 +88,7 @@ const Profile = () => {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      if (!res.ok) throw new Error("Failed to update");
 
       toast.success("Profile updated!");
       setIsEditing(false);
@@ -96,14 +99,10 @@ const Profile = () => {
     }
   };
 
+  // Handle File Upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: "profile" | "qr") => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File size must be less than 2MB");
-      return;
-    }
 
     setIsUploading(true);
     const formData = new FormData();
@@ -130,18 +129,12 @@ const Profile = () => {
     }
   };
 
-  // Loading Skeleton
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background pb-20">
-        <div className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
-           <Skeleton className="h-64 w-full rounded-xl" />
-           <div className="grid grid-cols-2 gap-4">
-             <Skeleton className="h-32 w-full" />
-             <Skeleton className="h-32 w-full" />
-           </div>
-           <Skeleton className="h-96 w-full" />
-        </div>
+      <div className="min-h-screen bg-background p-8 max-w-2xl mx-auto space-y-6">
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
       </div>
     );
   }
@@ -195,7 +188,10 @@ const Profile = () => {
           <Card className="shadow-float border-0">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Personal Details</CardTitle>
+                <div>
+                    <CardTitle>Personal Details</CardTitle>
+                    <CardDescription>Manage your contact info</CardDescription>
+                </div>
                 {!isEditing ? (
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2">
                     <Edit2 className="h-4 w-4" /> Edit
@@ -220,7 +216,7 @@ const Profile = () => {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" value={user.phone} onChange={handleChange} disabled={!isEditing} />
+                    <Input id="phone" value={user.phone} onChange={handleChange} disabled={!isEditing} placeholder="+91..." />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="upiId">UPI ID</Label>
@@ -230,7 +226,7 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* QR Code Dialog */}
+          {/* QR Code Section */}
           <Dialog>
                 <DialogTrigger asChild>
                     <Card className="hover:shadow-lg transition-all cursor-pointer border-l-4 border-l-success">
@@ -261,7 +257,6 @@ const Profile = () => {
                             )}
                         </div>
 
-                        {/* Upload QR Button */}
                         <div className="flex gap-2 w-full justify-center">
                             <input type="file" ref={qrInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, "qr")} />
                             <Button className="w-full" onClick={() => qrInputRef.current?.click()} disabled={isUploading}>

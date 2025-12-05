@@ -7,20 +7,27 @@ import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary";
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = await getDataFromToken(request);
+    
+    // Parse form data
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
-    if (!file) return NextResponse.json({ message: "No file found" }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ message: "No file uploaded" }, { status: 400 });
+    }
 
     const user = await User.findById(userId);
-
+    
+    // Delete old QR if it exists
     if (user.qrPublicId) {
       await deleteFromCloudinary(user.qrPublicId);
     }
 
-    const result: any = await uploadToCloudinary(file, "trip-splitter-qr");
+    // Upload new image
+    const result: any = await uploadToCloudinary(file, "trip-splitter-qrcodes");
     
+    // Save to DB
     user.qrCode = result.secure_url;
     user.qrPublicId = result.public_id;
     await user.save();

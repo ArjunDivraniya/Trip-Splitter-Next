@@ -6,19 +6,13 @@ import { getDataFromToken } from "@/lib/getDataFromToken";
 export async function PUT(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = await getDataFromToken(request); // Await this just in case
     const reqBody = await request.json();
-    const { name, email, phone } = reqBody;
-
-    // Check if email belongs to another user
-    const existingUser = await User.findOne({ email, _id: { $ne: userId } });
-    if (existingUser) {
-      return NextResponse.json({ message: "Email already in use" }, { status: 400 });
-    }
+    const { name, phone } = reqBody; // Don't allow email update here for security
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { name, email, phone },
+      { name, phone },
       { new: true, runValidators: true }
     );
 

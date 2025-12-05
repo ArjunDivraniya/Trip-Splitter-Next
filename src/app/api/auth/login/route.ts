@@ -9,23 +9,17 @@ export async function POST(request: Request) {
     await dbConnect();
     const { email, password } = await request.json();
 
-    // 1. Find user AND explicitly select the password
+    // 1. Find user & include password for checking
     const user = await User.findOne({ email }).select("+password");
     
     if (!user) {
-      return NextResponse.json(
-        { message: "Invalid credentials" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 400 });
     }
 
-    // 2. Check password (now user.password is defined)
+    // 2. Validate Password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return NextResponse.json(
-        { message: "Invalid credentials" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Invalid credentials" }, { status: 400 });
     }
 
     // 3. Generate Token
@@ -35,22 +29,30 @@ export async function POST(request: Request) {
       { expiresIn: "7d" }
     );
 
-    // 4. Return success
-    return NextResponse.json({
+    // 4. Create Response
+    const response = NextResponse.json({
       message: "Login successful",
-      token,
+      success: true,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        profileImage: user.profileImage, // Useful for the frontend
+        profileImage: user.profileImage,
       },
     });
+
+    // 5. CRITICAL FIX: Set the Token in a Cookie
+    // This allows the browser to send it automatically to /api/user/me
+    response.cookies.set("token", token, {
+      httpOnly: true, // Secure: JavaScript cannot read this
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    return response;
+
   } catch (error: any) {
-    console.error("Login Error:", error); // Log error for debugging
-    return NextResponse.json(
-      { message: error.message || "Something went wrong" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
