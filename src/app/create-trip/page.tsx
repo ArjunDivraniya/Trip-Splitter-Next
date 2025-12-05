@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Calendar as CalendarIcon, MapPin, Users, Plus, X, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, MapPin, Plus, X, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
