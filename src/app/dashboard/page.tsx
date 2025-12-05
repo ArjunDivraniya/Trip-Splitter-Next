@@ -9,7 +9,7 @@ import TripCard from "@/components/TripCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
-// Define Trip Interface
+// Updated Interface with Financial Data
 interface Trip {
   _id: string;
   name: string;
@@ -17,6 +17,8 @@ interface Trip {
   startDate: string;
   endDate: string;
   members: any[];
+  totalExpense: number; // Added
+  yourBalance: number;  // Added
 }
 
 const Dashboard = () => {
@@ -36,7 +38,7 @@ const Dashboard = () => {
         setUserName(userData.data.name);
         setUserAvatar(userData.data.profileImage);
 
-        // 2. Fetch User Trips (REAL DATA)
+        // 2. Fetch User Trips (With Totals)
         const tripRes = await fetch("/api/trips/user");
         const tripData = await tripRes.json();
         
@@ -62,6 +64,9 @@ const Dashboard = () => {
         toast.success("Logged out");
     } catch (e) { router.push("/login"); }
   };
+
+  const ongoingTrips = trips.filter((trip) => new Date(trip.endDate) >= new Date());
+  const pastTrips = trips.filter((trip) => new Date(trip.endDate) < new Date());
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -107,26 +112,26 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="all" className="space-y-6">
+        <Tabs defaultValue="ongoing" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="all">All Trips ({trips.length})</TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="ongoing">Ongoing Trips ({ongoingTrips.length})</TabsTrigger>
+            <TabsTrigger value="past">Past Trips ({pastTrips.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4 animate-fade-in">
-            {trips.length > 0 ? (
+          <TabsContent value="ongoing" className="space-y-4 animate-fade-in">
+            {ongoingTrips.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {trips.map((trip) => (
+                {ongoingTrips.map((trip) => (
                   <TripCard
                     key={trip._id}
-                    id={trip._id} // Pass real ID
+                    id={trip._id}
                     name={trip.name}
                     location={trip.destination}
                     startDate={new Date(trip.startDate).toLocaleDateString()}
                     endDate={new Date(trip.endDate).toLocaleDateString()}
-                    members={trip.members.length} // Count members
-                    totalExpense={0} // We load real totals in overview, 0 for dashboard list for speed
-                    yourBalance={0}
+                    members={trip.members.length}
+                    totalExpense={trip.totalExpense} // REAL VALUE
+                    yourBalance={trip.yourBalance}   // REAL VALUE
                     status={"ongoing"}
                     onClick={() => router.push(`/trip/${trip._id}`)}
                   />
@@ -134,17 +139,38 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">No trips found</p>
+                <p className="text-muted-foreground mb-4">No ongoing trips</p>
                 <Button onClick={() => router.push("/create-trip")}>
                   <Plus className="mr-2 h-5 w-5" /> Create Your First Trip
                 </Button>
               </div>
             )}
           </TabsContent>
-          
-          {/* Placeholder for filtering logic */}
-          <TabsContent value="upcoming">
-             <div className="text-center py-12 text-muted-foreground">Filtered view coming soon</div>
+
+          <TabsContent value="past" className="space-y-4 animate-fade-in">
+            {pastTrips.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {pastTrips.map((trip) => (
+                  <TripCard
+                    key={trip._id}
+                    id={trip._id}
+                    name={trip.name}
+                    location={trip.destination}
+                    startDate={new Date(trip.startDate).toLocaleDateString()}
+                    endDate={new Date(trip.endDate).toLocaleDateString()}
+                    members={trip.members.length}
+                    totalExpense={trip.totalExpense} // REAL VALUE
+                    yourBalance={trip.yourBalance}   // REAL VALUE
+                    status={"completed"}
+                    onClick={() => router.push(`/trip/${trip._id}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No past trips yet</p>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
