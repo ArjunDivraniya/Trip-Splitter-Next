@@ -3,12 +3,11 @@ import dbConnect from "@/lib/dbConnect";
 import Trip from "@/models/Trip";
 import User from "@/models/User";
 import { getDataFromToken } from "@/lib/getDataFromToken";
-import { sendNotification } from "@/lib/notification"; // Import Helper
 
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = await getDataFromToken(request);
     const reqBody = await request.json();
     const { name, destination, startDate, endDate, members } = reqBody;
 
@@ -16,12 +15,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Please fill in all required fields" }, { status: 400 });
     }
 
-    const memberList = members.map((m: any) => ({
-      email: m.email,
-      userId: m.userId || null,
-      status: "invited"
+    // Process Members: Look up User IDs for emails
+    const memberList = await Promise.all(members.map(async (m: any) => {
+      // Try to find user by email to link their ID immediately
+      const existingUser = await User.findOne({ email: m.email });
+      return {
+        email: m.email,
+        userId: existingUser ? existingUser._id : null, // Link ID if found
+        status: "invited" // Pending acceptance
+      };
     }));
 
+    // Add creator as a joined member
     const creator = await User.findById(userId);
     if (creator) {
       const isCreatorAdded = memberList.some((m: any) => m.email === creator.email);
@@ -37,26 +42,10 @@ export async function POST(request: NextRequest) {
       endDate,
       createdBy: userId,
       members: memberList,
+      status: "active"
     });
 
     const savedTrip = await newTrip.save();
-
-    // --- TRIGGER NOTIFICATION ---
-    // Get all valid user IDs excluding the creator
-    const recipientIds = memberList
-      .filter((m: any) => m.userId && m.userId.toString() !== userId)
-      .map((m: any) => m.userId);
-
-    if (recipientIds.length > 0) {
-      await sendNotification(
-        recipientIds,
-        userId,
-        savedTrip._id,
-        `Invited you to join "${name}" to ${destination}`,
-        "invite"
-      );
-    }
-    // ---------------------------
 
     return NextResponse.json({
       message: "Trip created successfully",

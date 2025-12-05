@@ -19,7 +19,7 @@ const TripSchema = new mongoose.Schema({
     type: Date,
     required: [true, "Please provide an end date"],
   },
-  // Trip Status: 'active' or 'completed'
+  // Trip Status
   status: {
     type: String,
     enum: ["active", "completed"],
@@ -34,8 +34,8 @@ const TripSchema = new mongoose.Schema({
     {
       email: { type: String, required: true },
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, 
-      // Member Status: 'invited' (pending) or 'joined' (accepted)
-      status: { type: String, enum: ["invited", "joined"], default: "invited" }, 
+      // Member Status: invited (pending), joined (accepted), rejected
+      status: { type: String, enum: ["invited", "joined", "rejected"], default: "invited" }, 
     },
   ],
   expenses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Expense" }],
