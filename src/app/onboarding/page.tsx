@@ -1,34 +1,39 @@
-// placeholder for `onboarding/page.tsx` (migrated from Onboarding.tsx)
-// File intentionally left without component code.
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import welcomeImg from "@/assets/onboarding-welcome.png";
-import splitImg from "@/assets/onboarding-split.png";
-import settleImg from "@/assets/onboarding-settle.png";
 
 const onboardingSteps = [
   {
     title: "Welcome to TripSplit",
     description: "Manage trip expenses easily with your friends. Track every expense and never worry about splitting bills again.",
-    image: welcomeImg,
+    image: "/assets/onboarding-welcome.png", // Direct path to public folder
   },
   {
     title: "Track Who Owes Whom",
     description: "Smart calculations show exactly who owes what. Split expenses fairly and transparently across all members.",
-    image: splitImg,
+    image: "/assets/onboarding-split.png",
   },
   {
     title: "Scan QR & Settle Faster",
     description: "Generate QR codes for quick payments. Mark settlements instantly and keep everyone updated in real-time.",
-    image: settleImg,
+    image: "/assets/onboarding-settle.png",
   },
 ];
 
 const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const router = useRouter();
+
+  useEffect(() => {
+    // Check if user has already seen onboarding
+    const hasSeen = localStorage.getItem("hasSeenOnboarding");
+    if (hasSeen) {
+      router.push("/login");
+    }
+  }, [router]);
 
   const handleNext = () => {
     if (currentStep < onboardingSteps.length - 1) {
@@ -59,9 +64,9 @@ const Onboarding = () => {
           {/* Image */}
           <div className="flex justify-center mb-8">
             <img 
-              src={(step.image as any)?.src ?? step.image}
+              src={step.image}
               alt={step.title}
-              className="w-full max-w-sm h-auto rounded-2xl shadow-float animate-scale-in"
+              className="w-full max-w-sm h-auto rounded-2xl shadow-float animate-scale-in object-contain max-h-[300px]"
             />
           </div>
 
