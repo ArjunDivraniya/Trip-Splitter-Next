@@ -4,11 +4,14 @@ import Trip from "@/models/Trip";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 import { sendNotification } from "@/lib/notification";
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
     const userId = await getDataFromToken(request);
-    const { id } = await params;
+    const { id } = await context.params;
     const { action } = await request.json(); // action: 'accept' | 'reject'
 
     const trip = await Trip.findById(id);

@@ -4,12 +4,15 @@ import Trip from "@/models/Trip";
 import Expense from "@/models/Expense";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
     // Verify user is logged in
     await getDataFromToken(request);
-    const { id } = await params;
+    const { id } = await context.params;
 
     // 1. Fetch Trip & Expenses
     const trip = await Trip.findById(id).populate("members.userId", "name email profileImage");

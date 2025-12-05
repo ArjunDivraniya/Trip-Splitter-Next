@@ -4,11 +4,14 @@ import PackingItem from "@/models/PackingItem";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
 // GET: Fetch all items for a trip
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
     await getDataFromToken(request); // Verify Auth
-    const { id } = await params;
+    const { id } = await context.params;
 
     const items = await PackingItem.find({ trip: id }).sort({ createdAt: -1 });
     return NextResponse.json({ success: true, data: items });
@@ -18,11 +21,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // POST: Add a new item
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
     const userId = await getDataFromToken(request);
-    const { id } = await params;
+    const { id } = await context.params;
     
     const { text, category } = await request.json();
 
@@ -44,7 +50,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 }
 
 // PUT: Toggle checkbox status
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest
+) {
   try {
     await dbConnect();
     await getDataFromToken(request);

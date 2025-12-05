@@ -1,15 +1,18 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Activity from "@/models/Activity";
-import Trip from "@/models/Trip"; // Need trip to get members
 import { getDataFromToken } from "@/lib/getDataFromToken";
-import { sendNotification } from "@/lib/notification"; // Import Helper
+import { sendNotification } from "@/lib/notification";
+import Trip from "@/models/Trip";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
     await getDataFromToken(request);
-    const { id } = await params;
+    const { id } = await context.params;
 
     const activities = await Activity.find({ trip: id }).sort({ date: 1, time: 1 });
     return NextResponse.json({ success: true, data: activities });
@@ -18,11 +21,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     await dbConnect();
     const userId = await getDataFromToken(request);
-    const { id } = await params;
+    const { id } = await context.params;
     const reqBody = await request.json();
 
     const activity = await Activity.create({
@@ -30,8 +36,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       createdBy: userId,
       ...reqBody
     });
-
-    // --- TRIGGER NOTIFICATION ---
+    
+    // Trigger Notification
     const trip = await Trip.findById(id);
     if (trip) {
       const memberIds = trip.members
@@ -46,7 +52,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         "activity"
       );
     }
-    // ---------------------------
 
     return NextResponse.json({ success: true, data: activity });
   } catch (error: any) {
