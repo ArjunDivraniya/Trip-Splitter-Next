@@ -4,10 +4,20 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+interface Message {
+  _id: string;
+  content: string;
+  sender: {
+    _id: string;
+    name: string;
+    profileImage?: string;
+  };
+  createdAt: string;
+}
 
 const Chat = () => {
   const router = useRouter();
@@ -15,7 +25,7 @@ const Chat = () => {
   const id = params.id;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -53,8 +63,8 @@ const Chat = () => {
   useEffect(() => {
     if (id) {
       fetchMessages();
-      // Simple polling every 5 seconds for updates
-      const interval = setInterval(fetchMessages, 5000);
+      // Simple polling every 3 seconds for updates
+      const interval = setInterval(fetchMessages, 3000);
       return () => clearInterval(interval);
     }
   }, [id]);
@@ -75,7 +85,7 @@ const Chat = () => {
       
       const data = await res.json();
       if (data.success) {
-        setMessages([...messages, data.data]);
+        setMessages((prev) => [...prev, data.data]);
         setNewMessage("");
       }
     } catch (error) {
@@ -88,7 +98,7 @@ const Chat = () => {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b p-4 flex-none">
+      <header className="bg-card border-b p-4 flex-none sticky top-0 z-10">
         <div className="container mx-auto flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
@@ -109,22 +119,23 @@ const Chat = () => {
         ) : (
           messages.map((msg) => {
             // Safe access to sender properties
-            const senderId = msg.sender?._id || "unknown";
-            const senderName = msg.sender?.name || "Unknown User";
-            const senderImage = msg.sender?.profileImage || "";
+            const sender = msg.sender || {};
+            const senderId = sender._id || "unknown";
+            const senderName = sender.name || "Unknown";
+            const senderImage = sender.profileImage || "";
             const isMe = senderId === currentUserId;
 
             return (
               <div key={msg._id} className={`flex gap-3 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                <Avatar className="h-8 w-8 mt-1">
+                <Avatar className="h-8 w-8 mt-1 border border-border">
                   <AvatarImage src={senderImage} />
-                  <AvatarFallback>{senderName.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{senderName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                <div className={`max-w-[80%] p-3 rounded-2xl text-sm shadow-sm ${
                   isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border rounded-tl-none"
                 }`}>
                   {!isMe && <p className="text-[10px] opacity-70 mb-1 font-semibold">{senderName}</p>}
-                  <p>{msg.content}</p>
+                  <p className="break-words">{msg.content}</p>
                   <p className={`text-[10px] mt-1 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>

@@ -1,32 +1,50 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import Trip from "@/models/Trip";
+import Message from "@/models/Message";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
+// GET Messages
+export async function GET(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    await dbConnect();
+    await getDataFromToken(request);
+    const { id } = await context.params;
+
+    const messages = await Message.find({ trip: id })
+      .sort({ createdAt: 1 })
+      .populate("sender", "name profileImage");
+
+    return NextResponse.json({ success: true, data: messages });
+  } catch (error: any) {
+    return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+}
+
+// POST Message
 export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> } // CHANGED: params is a Promise
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     const userId = await getDataFromToken(request);
-    
-    // Await params to get ID
     const { id } = await context.params;
+    const { content } = await request.json();
 
-    const trip = await Trip.findById(id);
-    if (!trip) return NextResponse.json({ message: "Trip not found" }, { status: 404 });
+    const newMessage = await Message.create({
+      trip: id,
+      sender: userId,
+      content
+    });
 
-    // Check if user is the Creator
-    if (trip.createdBy.toString() !== userId) {
-      return NextResponse.json({ message: "Only the admin can end this trip" }, { status: 403 });
-    }
+    // Re-fetch to ensure populate works correctly and returns full sender details
+    const populatedMessage = await Message.findById(newMessage._id)
+        .populate("sender", "name profileImage");
 
-    trip.status = "completed";
-    await trip.save();
-
-    return NextResponse.json({ success: true, message: "Trip ended successfully", data: trip });
-
+    return NextResponse.json({ success: true, data: populatedMessage });
   } catch (error: any) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
