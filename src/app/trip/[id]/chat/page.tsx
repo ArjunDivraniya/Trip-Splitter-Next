@@ -24,9 +24,13 @@ const Chat = () => {
   // 1. Fetch User ID (to distinguish own messages)
   useEffect(() => {
     const fetchUser = async () => {
-      const res = await fetch("/api/user/me");
-      const data = await res.json();
-      if (res.ok) setCurrentUserId(data.data._id);
+      try {
+        const res = await fetch("/api/user/me");
+        const data = await res.json();
+        if (res.ok) setCurrentUserId(data.data._id);
+      } catch (e) {
+        console.error("Failed to fetch user");
+      }
     };
     fetchUser();
   }, []);
@@ -104,17 +108,22 @@ const Chat = () => {
           <div className="text-center text-muted-foreground py-10">No messages yet. Say hi! 👋</div>
         ) : (
           messages.map((msg) => {
-            const isMe = msg.sender._id === currentUserId;
+            // Safe access to sender properties
+            const senderId = msg.sender?._id || "unknown";
+            const senderName = msg.sender?.name || "Unknown User";
+            const senderImage = msg.sender?.profileImage || "";
+            const isMe = senderId === currentUserId;
+
             return (
               <div key={msg._id} className={`flex gap-3 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
                 <Avatar className="h-8 w-8 mt-1">
-                  <AvatarImage src={msg.sender.profileImage} />
-                  <AvatarFallback>{msg.sender.name?.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={senderImage} />
+                  <AvatarFallback>{senderName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
                   isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border rounded-tl-none"
                 }`}>
-                  {!isMe && <p className="text-[10px] opacity-70 mb-1 font-semibold">{msg.sender.name}</p>}
+                  {!isMe && <p className="text-[10px] opacity-70 mb-1 font-semibold">{senderName}</p>}
                   <p>{msg.content}</p>
                   <p className={`text-[10px] mt-1 text-right ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +27,8 @@ import {
   CheckSquare, 
   Flag,
   UserPlus,
-  Loader2
+  Loader2,
+  Search
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -71,6 +72,13 @@ const categoryColors: Record<string, string> = {
   other: "text-gray-500 bg-gray-500/10",
 };
 
+interface SearchUser {
+    email: string;
+    name?: string;
+    profileImage?: string;
+    _id?: string;
+}
+
 const TripOverview = () => {
   const router = useRouter();
   const params = useParams();
@@ -84,6 +92,54 @@ const TripOverview = () => {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [addingMember, setAddingMember] = useState(false);
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Search Logic (Debounced) ---
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.length >= 2) {
+        performSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const performSearch = async (query: string) => {
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/user/search?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      
+      const users = data.success ? data.data : (Array.isArray(data) ? data : []);
+
+      if (Array.isArray(users)) {
+        // Filter out existing members
+        const currentMemberEmails = trip?.members?.map((m: any) => m.email) || [];
+        const filtered = users.filter((u: any) => !currentMemberEmails.includes(u.email));
+        setSearchResults(filtered);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Search error", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectUser = (user: SearchUser) => {
+      setNewMemberEmail(user.email);
+      setSearchQuery(user.email); // Show email in input
+      setSearchResults([]); // Hide dropdown
+  };
 
   // --- Fetch Real Trip Data ---
   const fetchTripDetails = async () => {
@@ -93,9 +149,6 @@ const TripOverview = () => {
       
       const data = await res.json();
       setTrip(data.data);
-      
-      // Debugging: Check if isCreator is coming through
-      console.log("Is Creator?", data.data.isCreator); 
     } catch (error) {
       console.error(error);
       toast.error("Failed to load trip details");
@@ -129,21 +182,30 @@ const TripOverview = () => {
 
   // --- Add Member Handler ---
   const handleAddMember = async () => {
-    if (!newMemberEmail) return;
+    // If input is empty, try using search query if it looks like an email
+    const emailToAdd = newMemberEmail || (searchQuery.includes('@') ? searchQuery : "");
+
+    if (!emailToAdd) {
+        toast.error("Please select a user or enter a valid email");
+        return;
+    }
+
     setAddingMember(true);
     try {
         const res = await fetch(`/api/trips/${id}/add-member`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: newMemberEmail })
+            body: JSON.stringify({ email: emailToAdd })
         });
 
         const data = await res.json();
         if (res.ok) {
             toast.success("Invitation sent!");
             setNewMemberEmail("");
+            setSearchQuery("");
+            setSearchResults([]);
             setIsAddMemberOpen(false);
-            fetchTripDetails(); // Refresh list to show new invited member
+            fetchTripDetails(); // Refresh list
         } else {
             toast.error(data.message || "Failed to add member");
         }
@@ -194,7 +256,6 @@ const TripOverview = () => {
           </Button>
 
           {/* Admin End Trip Button */}
-          {/* Condition: Must be creator AND trip must be active */}
           {trip.isCreator && trip.status !== "completed" && (
              <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -269,7 +330,7 @@ const TripOverview = () => {
         
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-blue-500" onClick={() => router.push(`/trip/${id}/analytics`)}>
+             <Card className="cursor-pointer hover:bg-accent/50 border-l-4 border-l-blue-500" onClick={() => router.push(`/trip/${id}/analytics`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                         <BarChart3 className="h-5 w-5 text-blue-600" />
@@ -279,7 +340,7 @@ const TripOverview = () => {
                     </div>
                 </CardContent>
              </Card>
-             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-green-500" onClick={() => router.push(`/trip/${id}/chat`)}>
+             <Card className="cursor-pointer hover:bg-accent/50 border-l-4 border-l-green-500" onClick={() => router.push(`/trip/${id}/chat`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                         <MessageCircle className="h-5 w-5 text-green-600" />
@@ -289,7 +350,7 @@ const TripOverview = () => {
                     </div>
                 </CardContent>
              </Card>
-             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-orange-500" onClick={() => router.push(`/trip/${id}/itinerary`)}>
+             <Card className="cursor-pointer hover:bg-accent/50 border-l-4 border-l-orange-500" onClick={() => router.push(`/trip/${id}/itinerary`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
                         <ClipboardList className="h-5 w-5 text-orange-600" />
@@ -299,7 +360,7 @@ const TripOverview = () => {
                     </div>
                 </CardContent>
              </Card>
-             <Card className="cursor-pointer hover:bg-accent/50 transition-colors border-l-4 border-l-purple-500" onClick={() => router.push(`/trip/${id}/packing-list`)}>
+             <Card className="cursor-pointer hover:bg-accent/50 border-l-4 border-l-purple-500" onClick={() => router.push(`/trip/${id}/packing-list`)}>
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                     <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
                         <CheckSquare className="h-5 w-5 text-purple-600" />
@@ -355,7 +416,7 @@ const TripOverview = () => {
           {/* --- MEMBERS TAB --- */}
           <TabsContent value="members" className="space-y-4 animate-fade-in">
             
-            {/* --- ADD MEMBER BUTTON (Admin Only & Active Trip) --- */}
+            {/* --- ADD MEMBER BUTTON (With Search) --- */}
             {trip.isCreator && trip.status !== "completed" && (
                 <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
                     <DialogTrigger asChild>
@@ -367,20 +428,51 @@ const TripOverview = () => {
                         <DialogHeader>
                             <DialogTitle>Invite Friend</DialogTitle>
                             <DialogDescription>
-                                Enter the email address of the person you want to invite.
+                                Search for a user by name or enter their email.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 py-4">
+                        
+                        <div className="space-y-4 py-4 relative">
                             <div className="space-y-2">
-                                <Label>Email Address</Label>
-                                <Input 
-                                    type="email"
-                                    placeholder="friend@example.com" 
-                                    value={newMemberEmail}
-                                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                                />
+                                <Label>Name or Email</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        ref={searchInputRef}
+                                        placeholder="Search user..." 
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-9"
+                                        autoComplete="off"
+                                    />
+                                    {isSearching && <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />}
+                                </div>
+
+                                {/* Search Results Dropdown */}
+                                {searchResults.length > 0 && (
+                                    <div className="absolute z-50 w-full bg-popover border border-border rounded-md shadow-md mt-1 overflow-hidden">
+                                        {searchResults.map((user) => (
+                                            <div 
+                                                key={user.email} 
+                                                className="flex items-center gap-3 p-3 hover:bg-accent cursor-pointer transition-colors"
+                                                onClick={() => selectUser(user)}
+                                            >
+                                                <Avatar className="h-8 w-8 border">
+                                                    <AvatarImage src={user.profileImage} />
+                                                    <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate">{user.name}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                                </div>
+                                                <Plus className="h-4 w-4 text-primary" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
+
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setIsAddMemberOpen(false)}>Cancel</Button>
                             <Button onClick={handleAddMember} disabled={addingMember}>
@@ -403,7 +495,6 @@ const TripOverview = () => {
                       <div>
                         <p className="font-semibold">{member.name}</p>
                         <p className="text-xs text-muted-foreground">{member.email}</p>
-                        {/* Status Badges */}
                         {member.status === 'invited' && (
                             <Badge variant="outline" className="mt-1 text-[10px] h-5 bg-yellow-50 text-yellow-700 border-yellow-200">
                                 Pending Invite

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Calendar as CalendarIcon, MapPin, Plus, X, Loader2, Search } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, MapPin, Users, Plus, X, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -60,9 +60,12 @@ const CreateTrip = () => {
       const res = await fetch(`/api/user/search?query=${encodeURIComponent(query)}`);
       const data = await res.json();
       
-      if (data.success) {
+      // Handle both { success: true, data: [...] } and direct array/object responses
+      const users = data.success ? data.data : (Array.isArray(data) ? data : []);
+
+      if (Array.isArray(users)) {
         // Map backend users to Member format
-        const results = data.data.map((u: any) => ({
+        const results = users.map((u: any) => ({
             email: u.email,
             name: u.name,
             userId: u._id,
@@ -75,9 +78,12 @@ const CreateTrip = () => {
         );
         
         setSearchResults(filtered);
+      } else {
+          setSearchResults([]);
       }
     } catch (error) {
       console.error("Search error", error);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -231,12 +237,12 @@ const CreateTrip = () => {
           </Card>
 
           {/* SEARCH & ADD MEMBERS */}
-          <Card className="shadow-float border-0 overflow-visible"> {/* Overflow visible for dropdown */}
+          <Card className="shadow-float border-0 overflow-visible z-20"> {/* Ensure z-index here */}
             <CardHeader>
               <CardTitle>Travel Companions</CardTitle>
               <CardDescription>Search for friends to add</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 relative">
               
               <div className="space-y-2 relative">
                 <Label htmlFor="members">Add Members</Label>
@@ -261,7 +267,7 @@ const CreateTrip = () => {
 
                 {/* Suggestions Dropdown */}
                 {searchResults.length > 0 && (
-                    <div className="absolute z-50 w-full bg-card border border-border rounded-md shadow-xl mt-1 max-h-60 overflow-auto animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute top-full left-0 z-50 w-full bg-background border border-border rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
                         {searchResults.map((user) => (
                             <div 
                                 key={user.email} 
@@ -285,7 +291,7 @@ const CreateTrip = () => {
 
               {/* Selected Members List */}
               {members.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-3 pt-4">
                   <Label>Added Members</Label>
                   <div className="flex flex-wrap gap-2">
                     {members.map((m) => (
