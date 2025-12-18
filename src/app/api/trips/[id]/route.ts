@@ -86,6 +86,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       amount: e.amount,
       category: e.category,
       paidBy: e.paidBy.name,
+      paidById: e.paidBy._id.toString(),
+      splitBetween: e.splitBetween.map((u: any) => u._id.toString()),
       splitNames: e.splitBetween.map((u: any) => u.name.split(" ")[0]).join(", "),
       perPerson: Math.round(e.amount / (e.splitBetween.length || 1)),
       date: new Date(e.date).toLocaleDateString(),
@@ -105,6 +107,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         members: activeMembers, // Only active members returned here
         expenses: formattedExpenses,
         isCreator: userId === creatorId,
+        currentUserId: userId,
       }
     });
 

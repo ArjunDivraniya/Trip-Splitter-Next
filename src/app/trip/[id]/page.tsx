@@ -28,7 +28,9 @@ import {
   Flag,
   UserPlus,
   Loader2,
-  Search
+  Search,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -99,6 +101,17 @@ const TripOverview = () => {
   const [isSearching, setIsSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit Expense State
+  const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editSplitBetween, setEditSplitBetween] = useState<string[]>([]);
+  const [splitSearch, setSplitSearch] = useState("");
+  const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
+  const [isDeletingExpense, setIsDeletingExpense] = useState<string | null>(null);
+
   // --- Search Logic (Debounced) ---
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -161,6 +174,23 @@ const TripOverview = () => {
     if (id) fetchTripDetails();
   }, [id]);
 
+  // Light real-time: refetch on tab focus and every 30s
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && id) {
+        fetchTripDetails();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    const interval = setInterval(() => {
+      if (id) fetchTripDetails();
+    }, 30000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearInterval(interval);
+    };
+  }, [id]);
+
   // --- End Trip Handler ---
   const handleEndTrip = async () => {
     setEnding(true);
@@ -214,6 +244,118 @@ const TripOverview = () => {
     } finally {
         setAddingMember(false);
     }
+  };
+
+  // --- Edit Expense Handler ---
+  const handleEditExpense = (expense: any) => {
+    setEditingExpense(expense);
+    setEditTitle(expense.title);
+    setEditAmount(expense.amount.toString());
+    setEditCategory(expense.category);
+    setEditSplitBetween(expense.splitBetween);
+    setIsEditExpenseOpen(true);
+  };
+
+  const handleUpdateExpense = async () => {
+    if (!editTitle || !editAmount || editSplitBetween.length === 0) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    setIsUpdatingExpense(true);
+    try {
+      const res = await fetch(`/api/expenses/${editingExpense.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle,
+          amount: parseFloat(editAmount),
+          category: editCategory,
+          splitBetween: editSplitBetween
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        // Optimistic UI update for the expense card
+        const updatedExpense = {
+          id: editingExpense.id,
+          title: editTitle,
+          amount: parseFloat(editAmount),
+          category: editCategory,
+          paidBy: editingExpense.paidBy,
+          paidById: editingExpense.paidById,
+          splitBetween: editSplitBetween,
+          splitNames: (trip?.members || [])
+            .filter((m: any) => editSplitBetween.includes(m.id))
+            .map((m: any) => (m.name || "").split(" ")[0])
+            .join(", "),
+          perPerson: Math.round(parseFloat(editAmount) / (editSplitBetween.length || 1)),
+          date: editingExpense.date,
+        } as any;
+
+        setTrip((prev: any) => ({
+          ...prev,
+          expenses: (prev?.expenses || []).map((e: any) => (e.id === editingExpense.id ? updatedExpense : e)),
+        }));
+
+        toast.success("Expense updated successfully!");
+        setIsEditExpenseOpen(false);
+        // Background refresh to sync totals/balances accurately
+        fetchTripDetails();
+      } else {
+        toast.error(data.message || "Failed to update expense");
+      }
+    } catch (e) {
+      toast.error("Error updating expense");
+    } finally {
+      setIsUpdatingExpense(false);
+    }
+  };
+
+  // --- Delete Expense Handler ---
+  const handleDeleteExpense = async (expenseId: string) => {
+    setIsDeletingExpense(expenseId);
+    // Optimistically remove expense from UI for snappy feel
+    const previousExpenses = trip?.expenses || [];
+    setTrip((prev: any) => ({ ...prev, expenses: previousExpenses.filter((e: any) => e.id !== expenseId) }));
+
+    try {
+      const res = await fetch(`/api/expenses/${expenseId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Expense deleted successfully!");
+        // Background refresh to sync totals/balances accurately
+        fetchTripDetails();
+      } else {
+        // Revert on failure
+        setTrip((prev: any) => ({ ...prev, expenses: previousExpenses }));
+        toast.error(data.message || "Failed to delete expense");
+      }
+    } catch (e) {
+      // Revert on error
+      setTrip((prev: any) => ({ ...prev, expenses: previousExpenses }));
+      toast.error("Error deleting expense");
+    } finally {
+      setIsDeletingExpense(null);
+    }
+  };
+
+  const toggleSplitMember = (memberId: string) => {
+    setEditSplitBetween(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  const selectAllMembers = () => {
+    const allMemberIds = trip?.members.map((m: any) => m.id) || [];
+    setEditSplitBetween(allMemberIds);
+  };
+
+  const deselectAllMembers = () => {
+    setEditSplitBetween([]);
   };
 
   const CategoryIcon = (category: string) => {
@@ -382,13 +524,15 @@ const TripOverview = () => {
 
           {/* --- EXPENSES TAB --- */}
           <TabsContent value="expenses" className="space-y-4 animate-fade-in">
-            {trip.expenses.length > 0 ? trip.expenses.map((expense: any) => (
+            {trip.expenses.length > 0 ? trip.expenses.map((expense: any) => {
+              const canEditDelete = trip.currentUserId === expense.paidById;
+              return (
               <Card key={expense.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 flex-1">
                       {CategoryIcon(expense.category)}
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-semibold text-foreground text-base">{expense.title}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
                           Paid by <span className="font-medium text-foreground">{expense.paidBy}</span> • ₹{expense.amount}
@@ -398,14 +542,61 @@ const TripOverview = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground mb-1">Per person</p>
-                      <p className="font-bold text-lg text-foreground">₹{expense.perPerson}</p>
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground mb-1">Per person</p>
+                        <p className="font-bold text-lg text-foreground">₹{expense.perPerson}</p>
+                      </div>
+                      {canEditDelete && trip.status !== "completed" && (
+                        <div className="flex gap-1 ml-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={() => handleEditExpense(expense)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={isDeletingExpense === expense.id}
+                              >
+                                {isDeletingExpense === expense.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{expense.title}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteExpense(expense.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )) : (
+            )}) : (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
                     <p className="text-muted-foreground">No expenses added yet.</p>
                     <p className="text-xs text-muted-foreground mt-1">Tap the + button to add one!</p>
@@ -545,6 +736,145 @@ const TripOverview = () => {
             <Plus className="h-6 w-6" />
         </Button>
       )}
+
+      {/* Edit Expense Dialog */}
+      <Dialog open={isEditExpenseOpen} onOpenChange={setIsEditExpenseOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Expense</DialogTitle>
+            <DialogDescription>
+              Update the expense details below
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Expense Title</Label>
+              <Input
+                id="edit-title"
+                placeholder="e.g., Dinner at restaurant"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-amount">Amount (₹)</Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                placeholder="0"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-category">Category</Label>
+              <select
+                id="edit-category"
+                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+              >
+                <option value="food">Food</option>
+                <option value="travel">Travel</option>
+                <option value="hotel">Hotel</option>
+                <option value="shopping">Shopping</option>
+                <option value="entertainment">Entertainment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Split Between</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={selectAllMembers}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={deselectAllMembers}
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+              {/* Search member to quickly add a single person */}
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search member by name or email"
+                  value={splitSearch}
+                  onChange={(e) => setSplitSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="border border-input rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                {(trip?.members || [])
+                  .filter((member: any) => {
+                    if (!splitSearch) return true;
+                    const q = splitSearch.toLowerCase();
+                    return (
+                      member.name?.toLowerCase().includes(q) ||
+                      member.email?.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((member: any) => (
+                  <div key={member.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`edit-split-${member.id}`}
+                      checked={editSplitBetween.includes(member.id)}
+                      onChange={() => toggleSplitMember(member.id)}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor={`edit-split-${member.id}`} className="text-sm cursor-pointer flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={member.avatar} />
+                        <AvatarFallback>{member.name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      {member.name}
+                    </label>
+                    {/* Quick add single member action */}
+                    {!editSplitBetween.includes(member.id) && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="ml-auto h-7 text-xs"
+                        onClick={() => setEditSplitBetween(prev => [...prev, member.id])}
+                      >
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {editSplitBetween.length === 0 && (
+                <p className="text-xs text-red-500">Please select at least one member</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {editSplitBetween.length} member{editSplitBetween.length !== 1 ? 's' : ''} selected
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditExpenseOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateExpense} disabled={isUpdatingExpense}>
+              {isUpdatingExpense ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Update Expense"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
