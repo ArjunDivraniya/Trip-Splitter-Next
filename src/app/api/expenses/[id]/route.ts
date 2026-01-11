@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const reqBody = await request.json();
-    const { title, amount, category, splitBetween } = reqBody;
+    const { title, amount, category, splitBetween, splitType, splitAmounts, splitPercentages, splitShares, paidById } = reqBody;
 
     if (!title || !amount || !splitBetween || splitBetween.length === 0) {
       return NextResponse.json({ message: "Please fill in all fields" }, { status: 400 });
@@ -34,6 +34,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     expense.amount = Number(amount);
     expense.category = category;
     expense.splitBetween = splitBetween;
+    expense.splitType = splitType || "equally";
+    
+    if (splitAmounts) {
+      expense.splitAmounts = splitAmounts;
+    }
+    if (splitPercentages) {
+      expense.splitPercentages = splitPercentages;
+    }
+    if (splitShares) {
+      expense.splitShares = splitShares;
+    }
 
     await expense.save();
 

@@ -308,32 +308,79 @@ const AddExpense = () => {
                 <Label>Split Amongst</Label>
                 
                 {/* Split Type Selector */}
-                <RadioGroup value={splitType} onValueChange={(value: SplitType) => setSplitType(value)} className="space-y-2 mb-4">
-                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "equally" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
-                    <RadioGroupItem value="equally" id="equally" className="flex-shrink-0" />
-                    <Label htmlFor="equally" className="cursor-pointer flex-1 font-medium m-0">
-                      = Equally
-                    </Label>
-                  </div>
-                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "unequally" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
-                    <RadioGroupItem value="unequally" id="unequally" className="flex-shrink-0" />
-                    <Label htmlFor="unequally" className="cursor-pointer flex-1 font-medium m-0">
-                      ≠ Unequally
-                    </Label>
-                  </div>
-                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "percentage" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
-                    <RadioGroupItem value="percentage" id="percentage" className="flex-shrink-0" />
-                    <Label htmlFor="percentage" className="cursor-pointer flex-1 font-medium m-0 flex items-center gap-2">
-                      <Percent className="h-4 w-4" /> By %
-                    </Label>
-                  </div>
-                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "shares" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
-                    <RadioGroupItem value="shares" id="shares" className="flex-shrink-0" />
-                    <Label htmlFor="shares" className="cursor-pointer flex-1 font-medium m-0 flex items-center gap-2">
-                      <Hash className="h-4 w-4" /> By Shares
-                    </Label>
-                  </div>
-                </RadioGroup>
+                <div className="space-y-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setSplitType("equally")}
+                    className={`w-full flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${
+                      splitType === "equally"
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border hover:border-primary/50 hover:bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all" style={{
+                      borderColor: splitType === "equally" ? "currentColor" : "currentColor",
+                      backgroundColor: splitType === "equally" ? "currentColor" : "transparent"
+                    }}>
+                      {splitType === "equally" && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </div>
+                    <span className="flex-1 font-medium text-left">= Equally</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSplitType("unequally")}
+                    className={`w-full flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${
+                      splitType === "unequally"
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border hover:border-primary/50 hover:bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all" style={{
+                      borderColor: splitType === "unequally" ? "currentColor" : "currentColor",
+                      backgroundColor: splitType === "unequally" ? "currentColor" : "transparent"
+                    }}>
+                      {splitType === "unequally" && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </div>
+                    <span className="flex-1 font-medium text-left">≠ Unequally</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSplitType("percentage")}
+                    className={`w-full flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${
+                      splitType === "percentage"
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border hover:border-primary/50 hover:bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all" style={{
+                      borderColor: splitType === "percentage" ? "currentColor" : "currentColor",
+                      backgroundColor: splitType === "percentage" ? "currentColor" : "transparent"
+                    }}>
+                      {splitType === "percentage" && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </div>
+                    <span className="flex-1 font-medium text-left flex items-center gap-2"><Percent className="h-4 w-4" /> By %</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSplitType("shares")}
+                    className={`w-full flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${
+                      splitType === "shares"
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border hover:border-primary/50 hover:bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all" style={{
+                      borderColor: splitType === "shares" ? "currentColor" : "currentColor",
+                      backgroundColor: splitType === "shares" ? "currentColor" : "transparent"
+                    }}>
+                      {splitType === "shares" && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </div>
+                    <span className="flex-1 font-medium text-left flex items-center gap-2"><Hash className="h-4 w-4" /> By Shares</span>
+                  </button>
+                </div>
 
                 <div className="space-y-2">
                     {members.map((m) => {

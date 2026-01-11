@@ -43,6 +43,18 @@ const ExpenseSchema = new mongoose.Schema({
     of: Number,
     default: {},
   },
+  // Split percentages for each user (for percentage split type)
+  splitPercentages: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
+  // Split shares for each user (for shares split type)
+  splitShares: {
+    type: Map,
+    of: Number,
+    default: {},
+  },
   date: {
     type: Date,
     default: Date.now,

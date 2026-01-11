@@ -196,12 +196,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
       // Build per-user share using custom splitAmounts when provided, else fair equal split
       const sharesPaise: Record<string, number> = {};
+      // Expose raw split configs for edit page
+      const splitAmountsObj: Record<string, number> = {};
+      const splitPercentagesObj: Record<string, number> = {};
+      const splitSharesObj: Record<string, number> = {};
       if (e.splitAmounts && typeof e.splitAmounts.get === 'function') {
         // Use provided amounts for any beneficiary that has a value
         beneficiaries.forEach((b: { id: string; name: string }, idx: number) => {
           const amt = e.splitAmounts.get(b.id);
           if (typeof amt === 'number' && !isNaN(amt)) {
             sharesPaise[b.id] = Math.round(amt * 100);
+            splitAmountsObj[b.id] = Number(amt);
+          }
+        });
+      }
+
+      // Percentages
+      if (e.splitPercentages && typeof e.splitPercentages.get === 'function') {
+        beneficiaries.forEach((b: { id: string; name: string }) => {
+          const perc = e.splitPercentages.get(b.id);
+          if (typeof perc === 'number' && !isNaN(perc)) {
+            splitPercentagesObj[b.id] = Number(perc);
+          }
+        });
+      }
+
+      // Shares
+      if (e.splitShares && typeof e.splitShares.get === 'function') {
+        beneficiaries.forEach((b: { id: string; name: string }) => {
+          const sh = e.splitShares.get(b.id);
+          if (typeof sh === 'number' && !isNaN(sh)) {
+            splitSharesObj[b.id] = Number(sh);
           }
         });
       }
@@ -254,6 +279,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         splitBetween: involvedIds,
         splitNames: beneficiaries.map((u: any) => u.name.split(" ")[0]).join(", "),
         splitType: e.splitType,
+        // Raw split configs for edit page prefill
+        splitAmounts: Object.keys(splitAmountsObj).length ? splitAmountsObj : undefined,
+        splitPercentages: Object.keys(splitPercentagesObj).length ? splitPercentagesObj : undefined,
+        splitShares: Object.keys(splitSharesObj).length ? splitSharesObj : undefined,
         perPerson: equalPerPerson,
         rightLabel,
         rightAmount,
