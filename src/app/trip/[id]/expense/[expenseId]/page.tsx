@@ -55,15 +55,23 @@ interface ExpenseDetail {
 const ExpenseDetail = () => {
   const router = useRouter();
   const params = useParams();
-  const tripId = params.id;
-  const expenseId = params.expenseId;
+  const tripId = params.id as string;
+  const expenseId = params.expenseId as string;
 
   const [expense, setExpense] = useState<ExpenseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure client-side hydration is complete
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!mounted || !tripId || !expenseId) return;
+    
     const fetchExpenseDetail = async () => {
       try {
         const res = await fetch(`/api/trips/${tripId}`);
@@ -88,10 +96,8 @@ const ExpenseDetail = () => {
       }
     };
 
-    if (tripId && expenseId) {
-      fetchExpenseDetail();
-    }
-  }, [tripId, expenseId]);
+    fetchExpenseDetail();
+  }, [mounted, tripId, expenseId, router]);
 
   const handleDeleteExpense = async () => {
     setIsDeletingExpense(true);
@@ -127,7 +133,7 @@ const ExpenseDetail = () => {
     return members.find((m) => m.id === memberId);
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="animate-spin h-8 w-8" />

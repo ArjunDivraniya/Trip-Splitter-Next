@@ -170,36 +170,87 @@
 
 // export default Chat;
 
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import React from "react";
-import { useRouter , useParams } from "next/navigation";
-
-
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, MessageCircle, Zap, Loader2 } from "lucide-react";
 
 const ChatPage = () => {
   const router = useRouter();
   const params = useParams();
-  const id = params.id; 
-  return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b p-4 flex-none sticky top-0 z-10">
+  const [mounted, setMounted] = useState(false);
 
-        <div className="container mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="animate-spin h-8 w-8" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
+      <header className="bg-card border-b border-border/50 sticky top-0 z-10 backdrop-blur-sm bg-card/80">
+        <div className="container mx-auto px-4 py-4">
+          <Button variant="ghost" onClick={() => router.back()} className="gap-2">
+            <ArrowLeft className="h-5 w-5" /> Back
           </Button>
-          <div>
-            <h1 className="font-bold text-lg">Group Chat</h1>
-            <p className="text-xs text-muted-foreground">Discuss plans & expenses</p>
-          </div>
         </div>
       </header>
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-muted-foreground">Chat functionality coming soon for Trip ID: {id}</p>
+
+      {/* Coming Soon Content */}
+      <div className="container mx-auto px-4 py-12 max-w-2xl">
+        <div className="flex flex-col items-center justify-center text-center space-y-6">
+          {/* Icon */}
+          <div className="h-20 w-20 bg-blue-100 rounded-full flex items-center justify-center animate-bounce">
+            <MessageCircle className="h-10 w-10 text-blue-600" />
+          </div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-foreground">Trip Chat</h1>
+            <p className="text-muted-foreground text-lg">Coming Soon</p>
+          </div>
+
+          {/* Description */}
+          <Card className="bg-primary/5 border-primary/20 w-full">
+            <CardContent className="p-6">
+              <p className="text-muted-foreground mb-4">
+                Stay tuned! We're working on a real-time chat feature that will let you communicate with your trip members right here.
+              </p>
+              <div className="space-y-2 text-left">
+                <div className="flex items-start gap-3">
+                  <Zap className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <span className="text-sm">Share trip updates and coordinates</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Zap className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <span className="text-sm">Discuss expenses and plans in one place</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Zap className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
+                  <span className="text-sm">Real-time notifications for all members</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Button */}
+          <Button variant="outline" onClick={() => router.back()}>
+            Go Back to Trip
+          </Button>
+        </div>
       </div>
     </div>
   );
-}
+};
+
 export default ChatPage;

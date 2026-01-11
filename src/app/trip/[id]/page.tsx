@@ -86,11 +86,12 @@ interface SearchUser {
 const TripOverview = () => {
   const router = useRouter();
   const params = useParams();
-  const id = params.id; 
+  const id = params.id as string;
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [ending, setEnding] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Add Member State
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -117,8 +118,15 @@ const TripOverview = () => {
   // Settle Up State
   const [settlements, setSettlements] = useState<any[]>([]);
 
+  // Ensure client-side hydration is complete
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // --- Search Logic (Debounced) ---
   useEffect(() => {
+    if (!mounted) return;
+    
     const timer = setTimeout(() => {
       if (searchQuery.length >= 2) {
         performSearch(searchQuery);
@@ -127,7 +135,7 @@ const TripOverview = () => {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, mounted]);
 
   const performSearch = async (query: string) => {
     setIsSearching(true);
@@ -161,6 +169,8 @@ const TripOverview = () => {
 
   // --- Fetch Real Trip Data ---
   const fetchTripDetails = async () => {
+    if (!id) return;
+    
     try {
       const res = await fetch(`/api/trips/${id}`);
       if (!res.ok) throw new Error("Failed to load trip");
@@ -176,8 +186,8 @@ const TripOverview = () => {
   };
 
   useEffect(() => {
-    if (id) fetchTripDetails();
-  }, [id]);
+    if (mounted && id) fetchTripDetails();
+  }, [mounted, id]);
 
   // Light real-time: refetch on tab focus and every 30s
   useEffect(() => {
@@ -197,7 +207,10 @@ const TripOverview = () => {
   }, [id]);
 
   // Fetch Settlements
+  // Fetch Settlements
   const fetchSettlements = async () => {
+    if (!id) return;
+    
     try {
       const res = await fetch(`/api/trips/${id}/settlements`);
       if (!res.ok) throw new Error("Failed to load settlements");
@@ -211,8 +224,8 @@ const TripOverview = () => {
   };
 
   useEffect(() => {
-    if (id) fetchSettlements();
-  }, [id]);
+    if (mounted && id) fetchSettlements();
+  }, [mounted, id]);
 
   // --- End Trip Handler ---
   const handleEndTrip = async () => {
@@ -392,7 +405,7 @@ const TripOverview = () => {
     );
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
         <div className="min-h-screen bg-background p-4 space-y-6">
             <Skeleton className="h-16 w-full" />
