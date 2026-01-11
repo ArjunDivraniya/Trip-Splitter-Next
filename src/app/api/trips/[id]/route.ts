@@ -1,14 +1,20 @@
 import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import Trip from "@/models/Trip";
-import Expense from "@/models/Expense";
-import User from "@/models/User";
+// Import all models at once to ensure proper registration
+import { User, Trip, Expense } from "@/models";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request); // User requesting the data
+    
+    let userId: string;
+    try {
+      userId = await getDataFromToken(request);
+    } catch (error: any) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    
     const { id } = await params;
 
     // 1. Fetch Trip

@@ -30,7 +30,9 @@ import {
   Loader2,
   Search,
   Pencil,
-  Trash2
+  Trash2,
+  ArrowRight,
+  CheckCircle2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -112,6 +114,9 @@ const TripOverview = () => {
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
   const [isDeletingExpense, setIsDeletingExpense] = useState<string | null>(null);
 
+  // Settle Up State
+  const [settlements, setSettlements] = useState<any[]>([]);
+
   // --- Search Logic (Debounced) ---
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -189,6 +194,24 @@ const TripOverview = () => {
       document.removeEventListener("visibilitychange", onVisibility);
       clearInterval(interval);
     };
+  }, [id]);
+
+  // Fetch Settlements
+  const fetchSettlements = async () => {
+    try {
+      const res = await fetch(`/api/trips/${id}/settlements`);
+      if (!res.ok) throw new Error("Failed to load settlements");
+      
+      const data = await res.json();
+      setSettlements(data.data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error("Could not calculate settlements");
+    }
+  };
+
+  useEffect(() => {
+    if (id) fetchSettlements();
   }, [id]);
 
   // --- End Trip Handler ---
@@ -519,10 +542,7 @@ const TripOverview = () => {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="settle" onClick={(e) => {
-              e.preventDefault();
-              router.push(`/trip/${id}/settle-up`);
-            }}>Settle Up</TabsTrigger>
+            <TabsTrigger value="settle">Settle Up</TabsTrigger>
           </TabsList>
 
           {/* --- EXPENSES TAB --- */}
@@ -736,7 +756,77 @@ const TripOverview = () => {
           </TabsContent>
 
           {/* --- SETTLE UP TAB --- */}
-          {/* Removed - clicking Settle Up tab now directly navigates to /settle-up page */}
+          <TabsContent value="settle" className="space-y-4 animate-fade-in">
+            <div className="text-center mb-8">
+              <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="h-8 w-8 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Settle Up</h2>
+              <p className="text-muted-foreground text-sm">Most efficient way to settle all debts in your group.</p>
+            </div>
+
+            {settlements.length > 0 ? (
+              settlements.map((item, index) => (
+                <Card key={index} className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-all">
+                  <CardContent className="p-6 flex items-center justify-between flex-wrap gap-4">
+                    
+                    {/* Debtor (Pays) */}
+                    <div className="flex items-center gap-3 min-w-[120px]">
+                      <Avatar className="h-12 w-12 border-2 border-red-100">
+                        <AvatarImage src={item.from.avatar} />
+                        <AvatarFallback className="bg-red-50 text-red-600 font-bold">
+                          {item.from.name?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-foreground">{item.from.name.split(" ")[0]}</p>
+                        <p className="text-xs text-red-500 font-medium">Pays</p>
+                      </div>
+                    </div>
+
+                    {/* Amount & Arrow */}
+                    <div className="flex flex-col items-center justify-center flex-1 min-w-[100px]">
+                      <p className="text-lg font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full mb-2">
+                        ₹{item.amount.toLocaleString()}
+                      </p>
+                      <ArrowRight className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+
+                    {/* Creditor (Receives) */}
+                    <div className="flex items-center gap-3 min-w-[120px] justify-end">
+                      <div className="text-right">
+                        <p className="font-semibold text-foreground">{item.to.name.split(" ")[0]}</p>
+                        <p className="text-xs text-green-500 font-medium">Receives</p>
+                      </div>
+                      <Avatar className="h-12 w-12 border-2 border-green-100">
+                        <AvatarImage src={item.to.avatar} />
+                        <AvatarFallback className="bg-green-50 text-green-600 font-bold">
+                          {item.to.name?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card className="bg-muted/30 border-dashed border-2">
+                <CardContent className="p-12 text-center">
+                  <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">All Settled Up!</h3>
+                  <p className="text-muted-foreground">No pending debts. Everyone is square.</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {settlements.length > 0 && (
+              <div className="text-center mt-8">
+                <p className="text-xs text-muted-foreground">
+                  Note: Payments must be made externally (UPI, Cash, etc.). This app only tracks the balances.
+                </p>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 

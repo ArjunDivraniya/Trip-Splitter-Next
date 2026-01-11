@@ -170,14 +170,36 @@
 
 // export default Chat;
 
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import React from "react";
+import { useRouter , useParams } from "next/navigation";
 
 
-const Chat = () => {
+
+const ChatPage = () => {
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id; 
   return (
-    <div className="flex items-center justify-center h-screen"> 
-      <p className="text-muted-foreground">Chat functionality is currently disabled.</p>
+    <div className="flex flex-col h-screen bg-background">
+      {/* Header */}
+      <header className="bg-card border-b p-4 flex-none sticky top-0 z-10">
+
+        <div className="container mx-auto flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="font-bold text-lg">Group Chat</h1>
+            <p className="text-xs text-muted-foreground">Discuss plans & expenses</p>
+          </div>
+        </div>
+      </header>
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-muted-foreground">Chat functionality coming soon for Trip ID: {id}</p>
+      </div>
     </div>
   );
 }
-export default Chat;
+export default ChatPage;
