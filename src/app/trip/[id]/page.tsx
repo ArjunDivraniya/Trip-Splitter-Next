@@ -519,7 +519,10 @@ const TripOverview = () => {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="settle">Settle Up</TabsTrigger>
+            <TabsTrigger value="settle" onClick={(e) => {
+              e.preventDefault();
+              router.push(`/trip/${id}/settle-up`);
+            }}>Settle Up</TabsTrigger>
           </TabsList>
 
           {/* --- EXPENSES TAB --- */}
@@ -712,17 +715,7 @@ const TripOverview = () => {
           </TabsContent>
 
           {/* --- SETTLE UP TAB --- */}
-          <TabsContent value="settle" className="space-y-4 animate-fade-in">
-            <Card className="bg-muted/30 border-dashed border-2">
-              <CardContent className="p-8 text-center">
-                <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground mb-4">See who owes whom to settle all debts.</p>
-                <Button onClick={() => router.push(`/trip/${id}/settle-up`)} className="gradient-primary text-white">
-                  View Settlements
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Removed - clicking Settle Up tab now directly navigates to /settle-up page */}
         </Tabs>
       </div>
 

@@ -48,8 +48,10 @@ export async function GET(request: NextRequest) {
             userStatus = memberRecord ? memberRecord.status : "invited";
         }
 
-        // Count only JOINED members (+1 for creator)
-        const activeMemberCount = trip.members.filter((m: any) => m.status === "joined").length + 1;
+        // Count JOINED members + creator (creator is always counted as member)
+        // This matches the trip details page logic where creator is always included
+        const joinedMembersCount = trip.members.filter((m: any) => m.status === "joined").length;
+        const activeMemberCount = joinedMembersCount + 1; // +1 for creator
 
         return {
             ...trip.toObject(),
