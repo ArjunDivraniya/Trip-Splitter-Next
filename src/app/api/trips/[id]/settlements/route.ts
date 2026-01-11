@@ -73,30 +73,37 @@ export async function GET(
         return;
       }
 
-      // Calculate per-person share with fair remainder distribution
-      const baseShare = Math.floor(amountPaise / beneficiaries.length);
-      const remainder = amountPaise % beneficiaries.length;
+      console.log(`  Expense: "${expense.title}" ₹${expense.amount} paid by ${expense.paidBy.name}, split ${beneficiaries.length} ways (${expense.splitType || 'equally'})`);
 
-      console.log(`  Expense: "${expense.title}" ₹${expense.amount} paid by ${expense.paidBy.name}, split ${beneficiaries.length} ways`);
-
-      // Each beneficiary owes the payer their share
-      beneficiaries.forEach((beneficiaryId, index) => {
+      // Calculate share for each beneficiary based on split type
+      beneficiaries.forEach((beneficiaryId: string, index: number) => {
         if (beneficiaryId === payerId) {
           // Payer is also a beneficiary - they don't owe themselves
           return;
         }
 
-        const share = baseShare + (index < remainder ? 1 : 0);
+        let sharePaise = 0;
+        
+        // Check if custom split amounts exist
+        if (expense.splitAmounts && expense.splitAmounts.get && expense.splitAmounts.get(beneficiaryId)) {
+          // Use custom amount from splitAmounts
+          sharePaise = Math.round(expense.splitAmounts.get(beneficiaryId) * 100);
+        } else {
+          // Default to equal split
+          const baseShare = Math.floor(amountPaise / beneficiaries.length);
+          const remainder = amountPaise % beneficiaries.length;
+          sharePaise = baseShare + (index < remainder ? 1 : 0);
+        }
         
         // Initialize debt tracking if needed
         if (!debts[beneficiaryId]) debts[beneficiaryId] = {};
         if (!debts[beneficiaryId][payerId]) debts[beneficiaryId][payerId] = 0;
         
         // Beneficiary owes payer this share
-        debts[beneficiaryId][payerId] += share;
+        debts[beneficiaryId][payerId] += sharePaise;
 
         const beneficiaryName = userDetails[beneficiaryId]?.name || beneficiaryId.substring(0, 8);
-        console.log(`    ${beneficiaryName} owes ${expense.paidBy.name}: +₹${(share / 100).toFixed(2)}`);
+        console.log(`    ${beneficiaryName} owes ${expense.paidBy.name}: +₹${(sharePaise / 100).toFixed(2)}`);
       });
     });
 

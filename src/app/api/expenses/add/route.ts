@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const userId = await getDataFromToken(request);
     
     const reqBody = await request.json();
-    const { tripId, title, amount, category, paidBy, splitBetween } = reqBody;
+    const { tripId, title, amount, category, paidBy, splitBetween, splitType, splitAmounts } = reqBody;
 
     if (!tripId || !title || !amount || !paidBy || !splitBetween || splitBetween.length === 0) {
       return NextResponse.json({ message: "Please fill in all fields" }, { status: 400 });
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
       category,
       paidBy,
       splitBetween,
+      splitType: splitType || "equally",
+      splitAmounts: splitAmounts || {},
     });
 
     const savedExpense = await newExpense.save();

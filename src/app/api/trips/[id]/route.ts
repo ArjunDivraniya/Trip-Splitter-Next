@@ -89,24 +89,35 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         return; // Skip invalid expenses
       }
 
-      // Calculate per-head share with fair rounding
+      // Calculate per-head share
+      // Check if custom split amounts exist (for unequally, percentage, shares)
       const splitCount = beneficiaries.length;
-      const baseSharePaise = Math.floor(amountPaise / splitCount);
-      const remainderPaise = amountPaise - (baseSharePaise * splitCount);
-
+      
       // Update TOTAL PAID for payer
       if (userRegistry.has(payerId)) {
         totalPaid[payerId] += amountPaise;
       }
 
-      // Update TOTAL SHARE for each beneficiary (distribute remainder fairly)
+      // Update TOTAL SHARE for each beneficiary
       beneficiaries.forEach((beneficiaryId: string, idx: number) => {
-        const share = baseSharePaise + (idx < remainderPaise ? 1 : 0);
-        totalShare[beneficiaryId] += share;
+        let sharePaise = 0;
+        
+        // Check if custom split amounts exist
+        if (expense.splitAmounts && expense.splitAmounts.get && expense.splitAmounts.get(beneficiaryId)) {
+          // Use custom amount from splitAmounts
+          sharePaise = Math.round(expense.splitAmounts.get(beneficiaryId) * 100);
+        } else {
+          // Default to equal split with fair rounding
+          const baseSharePaise = Math.floor(amountPaise / splitCount);
+          const remainderPaise = amountPaise - (baseSharePaise * splitCount);
+          sharePaise = baseSharePaise + (idx < remainderPaise ? 1 : 0);
+        }
+        
+        totalShare[beneficiaryId] += sharePaise;
       });
 
       // Log each expense processing
-      console.log(`  Expense: "${expense.title}" ₹${amount} paid by ${expense.paidBy.name}, split among ${beneficiaries.length} people`);
+      console.log(`  Expense: "${expense.title}" ₹${amount} paid by ${expense.paidBy.name}, split among ${beneficiaries.length} people (${expense.splitType || 'equally'})`);
     });
 
     // Step 3: Calculate NET BALANCE for each member
