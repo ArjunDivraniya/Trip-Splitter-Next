@@ -309,58 +309,58 @@ const AddExpense = () => {
                 
                 {/* Split Type Selector */}
                 <RadioGroup value={splitType} onValueChange={(value: SplitType) => setSplitType(value)} className="space-y-2 mb-4">
-                  <div className={`flex items-center space-x-2 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "equally" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}`}>
-                    <RadioGroupItem value="equally" id="equally" />
-                    <Label htmlFor="equally" className="cursor-pointer flex-1 font-medium">
+                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "equally" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
+                    <RadioGroupItem value="equally" id="equally" className="flex-shrink-0" />
+                    <Label htmlFor="equally" className="cursor-pointer flex-1 font-medium m-0">
                       = Equally
                     </Label>
                   </div>
-                  <div className={`flex items-center space-x-2 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "unequally" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}`}>
-                    <RadioGroupItem value="unequally" id="unequally" />
-                    <Label htmlFor="unequally" className="cursor-pointer flex-1 font-medium">
+                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "unequally" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
+                    <RadioGroupItem value="unequally" id="unequally" className="flex-shrink-0" />
+                    <Label htmlFor="unequally" className="cursor-pointer flex-1 font-medium m-0">
                       ≠ Unequally
                     </Label>
                   </div>
-                  <div className={`flex items-center space-x-2 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "percentage" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}`}>
-                    <RadioGroupItem value="percentage" id="percentage" />
-                    <Label htmlFor="percentage" className="cursor-pointer flex-1 font-medium flex items-center gap-1">
+                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "percentage" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
+                    <RadioGroupItem value="percentage" id="percentage" className="flex-shrink-0" />
+                    <Label htmlFor="percentage" className="cursor-pointer flex-1 font-medium m-0 flex items-center gap-2">
                       <Percent className="h-4 w-4" /> By %
                     </Label>
                   </div>
-                  <div className={`flex items-center space-x-2 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "shares" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"}`}>
-                    <RadioGroupItem value="shares" id="shares" />
-                    <Label htmlFor="shares" className="cursor-pointer flex-1 font-medium flex items-center gap-1">
+                  <div className={`flex items-center space-x-3 border-2 rounded-lg p-3 cursor-pointer transition-all ${splitType === "shares" ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-border/80 hover:bg-muted/50"}`}>
+                    <RadioGroupItem value="shares" id="shares" className="flex-shrink-0" />
+                    <Label htmlFor="shares" className="cursor-pointer flex-1 font-medium m-0 flex items-center gap-2">
                       <Hash className="h-4 w-4" /> By Shares
                     </Label>
                   </div>
                 </RadioGroup>
 
-                <div className="grid grid-cols-1 gap-2">
+                <div className="space-y-2">
                     {members.map((m) => {
                         const isSelected = splitBetween.includes(m.id);
                         return (
                             <div 
                                 key={m.id}
-                                className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                                    isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-accent"
+                                className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                                    isSelected ? "border-primary bg-primary/5" : "border-border hover:border-border/60 hover:bg-accent/30"
                                 }`}
                             >
                                 <div 
                                   className="flex items-center gap-3 flex-1 cursor-pointer"
                                   onClick={() => toggleSplitMember(m.id)}
                                 >
-                                    <Avatar className="h-8 w-8">
+                                    <Avatar className="h-9 w-9">
                                         <AvatarImage src={m.avatar} />
                                         <AvatarFallback>{m.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    <span className="font-medium">{m.name}</span>
+                                    <span className="font-medium text-sm">{m.name}</span>
                                 </div>
                                 
                                 {isSelected && mounted && (
-                                  <>
+                                  <div className="flex items-center gap-3">
                                     {splitType === "equally" && (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-2 ml-auto">
+                                        <span className="text-sm font-medium text-primary">
                                           ₹{amount && splitBetween.length > 0 ? (parseFloat(amount) / splitBetween.length).toFixed(2) : "0.00"}
                                         </span>
                                         <Check className="h-5 w-5 text-primary" />
@@ -368,7 +368,7 @@ const AddExpense = () => {
                                     )}
                                     
                                     {splitType === "unequally" && (
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 ml-auto">
                                         <div className="relative w-24">
                                           <IndianRupee className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
                                           <Input
@@ -384,7 +384,7 @@ const AddExpense = () => {
                                     )}
                                     
                                     {splitType === "percentage" && (
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 ml-auto">
                                         <div className="relative w-20">
                                           <Input
                                             type="number"
@@ -400,7 +400,7 @@ const AddExpense = () => {
                                     )}
                                     
                                     {splitType === "shares" && (
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 ml-auto">
                                         <div className="relative w-20">
                                           <Input
                                             type="number"
@@ -413,12 +413,12 @@ const AddExpense = () => {
                                         </div>
                                       </div>
                                     )}
-                                  </>
+                                  </div>
                                 )}
                                 
                                 {!isSelected && (
                                   <div 
-                                    className="h-8 w-8 rounded-full border-2 border-border cursor-pointer hover:border-primary transition-colors"
+                                    className="h-8 w-8 rounded-full border-2 border-border cursor-pointer hover:border-primary/50 transition-colors flex-shrink-0"
                                     onClick={() => toggleSplitMember(m.id)}
                                   />
                                 )}
@@ -429,29 +429,35 @@ const AddExpense = () => {
                 
                 {/* Summary for percentage and shares */}
                 {mounted && splitType === "percentage" && splitBetween.length > 0 && (
-                  <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                    Total: {splitBetween.reduce((sum, id) => sum + (parseFloat(percentages[id]) || 0), 0).toFixed(1)}% 
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-muted">
+                    <div className="flex justify-between items-center">
+                      <span>Total Percentage:</span>
+                      <span className="font-medium">{splitBetween.reduce((sum, id) => sum + (parseFloat(percentages[id]) || 0), 0).toFixed(1)}%</span>
+                    </div>
                     {Math.abs(splitBetween.reduce((sum, id) => sum + (parseFloat(percentages[id]) || 0), 0) - 100) > 0.01 && (
-                      <span className="text-destructive ml-2">Must equal 100%</span>
+                      <span className="text-destructive text-xs mt-2 block">⚠️ Must equal 100%</span>
                     )}
                   </div>
                 )}
                 
                 {mounted && splitType === "unequally" && splitBetween.length > 0 && amount && (
-                  <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                    Total: ₹{splitBetween.reduce((sum, id) => sum + (parseFloat(customAmounts[id]) || 0), 0).toFixed(2)} / ₹{parseFloat(amount).toFixed(2)}
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-muted">
+                    <div className="flex justify-between items-center">
+                      <span>Total Amount:</span>
+                      <span className="font-medium">₹{splitBetween.reduce((sum, id) => sum + (parseFloat(customAmounts[id]) || 0), 0).toFixed(2)} / ₹{parseFloat(amount).toFixed(2)}</span>
+                    </div>
                     {Math.abs(splitBetween.reduce((sum, id) => sum + (parseFloat(customAmounts[id]) || 0), 0) - parseFloat(amount)) > 0.01 && (
-                      <span className="text-destructive ml-2">Must equal total amount</span>
+                      <span className="text-destructive text-xs mt-2 block">⚠️ Must equal total amount</span>
                     )}
                   </div>
                 )}
                 
                 {mounted && splitType === "shares" && splitBetween.length > 0 && amount && (
-                  <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                    Total Shares: {splitBetween.reduce((sum, id) => sum + (parseFloat(shares[id]) || 0), 0)} 
-                    <span className="ml-2">
-                      (1 share = ₹{(parseFloat(amount) / splitBetween.reduce((sum, id) => sum + (parseFloat(shares[id]) || 0), 0)).toFixed(2)})
-                    </span>
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg border border-muted">
+                    <div className="flex justify-between items-center">
+                      <span>Total Shares / Per Share Value:</span>
+                      <span className="font-medium">{splitBetween.reduce((sum, id) => sum + (parseFloat(shares[id]) || 0), 0)} shares / ₹{(parseFloat(amount) / splitBetween.reduce((sum, id) => sum + (parseFloat(shares[id]) || 0), 0)).toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
             </div>
