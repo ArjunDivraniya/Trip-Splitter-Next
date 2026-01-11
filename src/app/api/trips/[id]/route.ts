@@ -181,18 +181,83 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // 5. Format Expenses
-    const formattedExpenses = expenses.map((e: any) => ({
-      id: e._id,
-      title: e.title,
-      amount: e.amount,
-      category: e.category,
-      paidBy: e.paidBy.name,
-      paidById: e.paidBy._id.toString(),
-      splitBetween: e.splitBetween.map((u: any) => u._id.toString()),
-      splitNames: e.splitBetween.map((u: any) => u.name.split(" ")[0]).join(", "),
-      perPerson: Number(((e.amount / (e.splitBetween.length || 1))).toFixed(2)),
-      date: new Date(e.date).toLocaleDateString(),
-    }));
+    const formattedExpenses = expenses.map((e: any) => {
+      const idStr = e._id;
+      const amount = Number(e.amount);
+      const amountPaise = Math.round(amount * 100);
+      const beneficiaries = e.splitBetween.map((u: any) => ({ id: u._id.toString(), name: u.name }));
+      const splitCount = beneficiaries.length || 1;
+
+      // Build per-user share using custom splitAmounts when provided, else fair equal split
+      const sharesPaise: Record<string, number> = {};
+      if (e.splitAmounts && typeof e.splitAmounts.get === 'function') {
+        // Use provided amounts for any beneficiary that has a value
+        beneficiaries.forEach((b: { id: string; name: string }, idx: number) => {
+          const amt = e.splitAmounts.get(b.id);
+          if (typeof amt === 'number' && !isNaN(amt)) {
+            sharesPaise[b.id] = Math.round(amt * 100);
+          }
+        });
+      }
+
+      // Fill missing with equal split using fair rounding
+      const alreadyAssigned = Object.values(sharesPaise).reduce((s, v) => s + v, 0);
+      const remainingPaise = Math.max(0, amountPaise - alreadyAssigned);
+      const needEqualIds = beneficiaries.filter((b: { id: string; name: string }) => sharesPaise[b.id] === undefined).map((b: { id: string; name: string }) => b.id);
+      const baseShare = Math.floor((needEqualIds.length ? remainingPaise / needEqualIds.length : 0));
+      const remainder = remainingPaise - baseShare * needEqualIds.length;
+      needEqualIds.forEach((bid: string, idx: number) => {
+        sharesPaise[bid] = baseShare + (idx < remainder ? 1 : 0);
+      });
+
+      // Convert to rupees
+      const sharesRupees: Record<string, number> = {};
+      beneficiaries.forEach((b: { id: string; name: string }) => {
+        sharesRupees[b.id] = Number(((sharesPaise[b.id] || 0) / 100).toFixed(2));
+      });
+
+      // Compute default equal per-person for display when splitType === 'equally'
+      const equalPerPerson = Number(((amountPaise / splitCount) / 100).toFixed(2));
+
+      const involvedIds = beneficiaries.map((b: { id: string; name: string }) => b.id);
+      const youInvolved = involvedIds.includes(userId);
+      const yourShare = youInvolved ? (sharesRupees[userId] || 0) : null;
+      const youPaidIt = userId === e.paidBy._id.toString();
+
+      // Status label: you borrowed, you lent, not involved
+      let statusLabel = 'Not involved';
+      if (youInvolved) {
+        if (youPaidIt) {
+          statusLabel = 'You lent';
+        } else {
+          statusLabel = 'You borrowed';
+        }
+      }
+
+      // Right-side label and amount for dashboard card
+      const rightLabel = e.splitType === 'equally' ? 'Per person' : (youInvolved ? 'Your share' : 'Not involved');
+      const rightAmount = rightLabel === 'Per person' ? equalPerPerson : (youInvolved ? Number((yourShare || 0).toFixed(2)) : null);
+
+      return {
+        id: idStr,
+        title: e.title,
+        amount: e.amount,
+        category: e.category,
+        paidBy: e.paidBy.name,
+        paidById: e.paidBy._id.toString(),
+        splitBetween: involvedIds,
+        splitNames: beneficiaries.map((u: any) => u.name.split(" ")[0]).join(", "),
+        splitType: e.splitType,
+        perPerson: equalPerPerson,
+        rightLabel,
+        rightAmount,
+        statusLabel,
+        yourShare,
+        date: new Date(e.date).toLocaleDateString(),
+        // Optional detailed breakdown for future drill-down
+        breakdown: beneficiaries.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name, amount: sharesRupees[b.id] || 0 }))
+      };
+    });
 
     return NextResponse.json({
       success: true,

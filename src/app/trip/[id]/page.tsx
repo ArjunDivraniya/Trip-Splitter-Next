@@ -530,33 +530,53 @@ const TripOverview = () => {
             {trip.expenses.length > 0 ? trip.expenses.map((expense: any) => {
               const canEditDelete = trip.currentUserId === expense.paidById;
               return (
-              <Card key={expense.id} className="hover:shadow-md transition-shadow">
+              <Card key={expense.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/trip/${id}/expense/${expense.id}`)}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
-                      {CategoryIcon(expense.category)}
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground font-medium">{expense.date}</p>
+                        {CategoryIcon(expense.category)}
+                      </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-foreground text-base">{expense.title}</h3>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Paid by <span className="font-medium text-foreground">{expense.paidBy}</span> • ₹{expense.amount}
+                          {expense.paidBy} paid <span className="font-medium">₹{expense.amount}</span>
                         </p>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                           Split among: <span className="italic">{expense.splitNames}</span>
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2">
+                    <div className="flex flex-col items-end gap-2">
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground mb-1">Per person</p>
-                        <p className="font-bold text-lg text-foreground">₹{expense.perPerson}</p>
+                        <p className={`text-xs font-medium mb-1 ${
+                          expense.statusLabel === 'You borrowed' ? 'text-orange-500' :
+                          expense.statusLabel === 'You lent' ? 'text-green-600' :
+                          'text-muted-foreground'
+                        }`}>
+                          {expense.statusLabel}
+                        </p>
+                        {expense.rightAmount !== null && expense.rightAmount !== undefined ? (
+                          <p className={`font-bold text-lg ${
+                            expense.statusLabel === 'You borrowed' ? 'text-orange-500' :
+                            expense.statusLabel === 'You lent' ? 'text-green-600' :
+                            'text-foreground'
+                          }`}>₹{expense.rightAmount}</p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">-</p>
+                        )}
                       </div>
                       {canEditDelete && trip.status !== "completed" && (
-                        <div className="flex gap-1 ml-2">
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={() => handleEditExpense(expense)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditExpense(expense);
+                            }}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -567,6 +587,7 @@ const TripOverview = () => {
                                 size="icon"
                                 className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                                 disabled={isDeletingExpense === expense.id}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {isDeletingExpense === expense.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -575,7 +596,7 @@ const TripOverview = () => {
                                 )}
                               </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
                                 <AlertDialogDescription>
