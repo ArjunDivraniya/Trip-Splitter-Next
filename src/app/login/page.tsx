@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock } from "lucide-react";
@@ -92,13 +91,6 @@ const Login = () => {
                         required
                     />
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox id="remember" />
-                <label htmlFor="remember" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Remember me for 7 days
-                </label>
               </div>
 
               <Button className="w-full h-11 text-base gradient-primary hover:opacity-90" type="submit" disabled={loading}>

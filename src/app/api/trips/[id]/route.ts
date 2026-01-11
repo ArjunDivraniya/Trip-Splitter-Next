@@ -5,7 +5,7 @@ import Expense from "@/models/Expense";
 import User from "@/models/User";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect();
     const userId = getDataFromToken(request); // User requesting the data
@@ -26,45 +26,135 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       .populate("splitBetween", "name")
       .sort({ date: -1 });
 
-    // 3. Calculate Balances
+    // 3. Calculate Balances using TOTAL PAID vs TOTAL SHARE methodology
+    // Using integer paise to avoid floating point errors
     let totalTripExpense = 0;
-    const memberBalances: Record<string, number> = {};
+    
+    // Step 1: Initialize data structures
+    const totalPaid: Record<string, number> = {}; // in paise
+    const totalShare: Record<string, number> = {}; // in paise
+    const memberBalances: Record<string, number> = {}; // net balance in paise
+    const userRegistry: Set<string> = new Set();
 
-    // Initialize balances ONLY for joined members and creator
+    // Helper to register a member (only joined members)
+    const registerMember = (user: any, status?: string) => {
+      if (!user) return null;
+      if (status && status !== "joined") return null;
+      const uid = user._id.toString();
+      
+      if (!userRegistry.has(uid)) {
+        userRegistry.add(uid);
+        totalPaid[uid] = 0;
+        totalShare[uid] = 0;
+      }
+      return uid;
+    };
+
+    // Register creator (always joined)
     const creatorId = trip.createdBy._id.toString();
-    memberBalances[creatorId] = 0;
+    registerMember(trip.createdBy, "joined");
 
-    trip.members.forEach((m: any) => {
-        // Only include members who have ACCEPTED the invite
-        if (m.userId && m.status === "joined") {
-            memberBalances[m.userId._id.toString()] = 0;
-        }
-    });
+    // Register all joined members
+    trip.members.forEach((m: any) => registerMember(m.userId, m.status));
 
+    // Step 2: Process expenses - Calculate TOTAL PAID and TOTAL SHARE
     expenses.forEach((expense: any) => {
-      totalTripExpense += expense.amount;
+      const amount = Number(expense.amount);
+      totalTripExpense += amount;
+
       const payerId = expense.paidBy._id.toString();
-      const splitCount = expense.splitBetween.length;
-      const splitAmount = expense.amount / (splitCount || 1);
+      const amountPaise = Math.round(amount * 100);
 
-      if (memberBalances[payerId] !== undefined) memberBalances[payerId] += expense.amount;
+      // IMPORTANT: Ensure payer is registered (they might not be in members list initially)
+      if (!userRegistry.has(payerId)) {
+        console.warn(`⚠️  Registering payer ${expense.paidBy.name} who wasn't in initial members list`);
+        registerMember(expense.paidBy, "joined");
+      }
 
-      expense.splitBetween.forEach((u: any) => {
-        const uString = u._id.toString();
-        if (memberBalances[uString] !== undefined) memberBalances[uString] -= splitAmount;
+      // Get beneficiaries (splitBetween members)
+      const beneficiaries = expense.splitBetween
+        .map((u: any) => {
+          const uid = u._id.toString();
+          // Ensure all beneficiaries are registered
+          if (!userRegistry.has(uid)) {
+            console.warn(`⚠️  Registering beneficiary ${u.name} who wasn't in initial members list`);
+            registerMember(u, "joined");
+          }
+          return uid;
+        })
+        .filter((uid: string) => userRegistry.has(uid)); // Only count registered members
+
+      if (beneficiaries.length === 0) {
+        console.warn(`⚠️  Skipping expense "${expense.title}" - no valid beneficiaries`);
+        return; // Skip invalid expenses
+      }
+
+      // Calculate per-head share with fair rounding
+      const splitCount = beneficiaries.length;
+      const baseSharePaise = Math.floor(amountPaise / splitCount);
+      const remainderPaise = amountPaise - (baseSharePaise * splitCount);
+
+      // Update TOTAL PAID for payer
+      if (userRegistry.has(payerId)) {
+        totalPaid[payerId] += amountPaise;
+      }
+
+      // Update TOTAL SHARE for each beneficiary (distribute remainder fairly)
+      beneficiaries.forEach((beneficiaryId: string, idx: number) => {
+        const share = baseSharePaise + (idx < remainderPaise ? 1 : 0);
+        totalShare[beneficiaryId] += share;
       });
+
+      // Log each expense processing
+      console.log(`  Expense: "${expense.title}" ₹${amount} paid by ${expense.paidBy.name}, split among ${beneficiaries.length} people`);
     });
 
-    // 4. Format Members (Only Joined + Creator)
+    // Step 3: Calculate NET BALANCE for each member
+    // netBalance = totalPaid - totalShare
+    // Positive = they should RECEIVE, Negative = they should PAY
+    userRegistry.forEach((userId) => {
+      memberBalances[userId] = totalPaid[userId] - totalShare[userId];
+    });
+
+    // Validation: Sum of all balances MUST be 0 (or very close due to rounding)
+    const balanceSum = Object.values(memberBalances).reduce((sum, bal) => sum + bal, 0);
+    console.log(`[Trip ${id}] Balance Calculation Complete:`);
+    console.log(`  - Registered members: ${userRegistry.size}`);
+    console.log(`  - Total expenses processed: ${expenses.length}`);
+    console.log(`  - Total trip expense: ₹${totalTripExpense}`);
+    console.log(`  - Balance sum (paise): ${balanceSum} (${(balanceSum/100).toFixed(2)} rupees)`);
+    
+    // Create user ID to name mapping for logging
+    const userIdToName: Record<string, string> = {};
+    trip.members.forEach((m: any) => {
+      if (m.userId) {
+        userIdToName[m.userId._id.toString()] = m.userId.name;
+      }
+    });
+    userIdToName[creatorId] = trip.createdBy.name;
+    
+    Object.entries(memberBalances).forEach(([uid, bal]) => {
+      const rupees = (bal / 100).toFixed(2);
+      const userName = userIdToName[uid] || uid.substring(0, 8) + '...';
+      console.log(`    ${userName}: ${bal > 0 ? '+' : ''}₹${rupees} (${bal > 0 ? '+' : ''}${bal} paise)`);
+    });
+    
+    if (Math.abs(balanceSum) > 1) { // Allow 1 paisa tolerance
+      console.warn(`⚠️  Balance validation warning: sum is ${balanceSum} paise (should be 0)`);
+    } else {
+      console.log(`✓ Balance validation passed`);
+    }
+
+    // 4. Format Members (All members should be included for expense splitting)
     const activeMembers = trip.members
-        .filter((m: any) => m.status === "joined" && m.userId)
+        .filter((m: any) => m.userId)
         .map((m: any) => ({
             id: m.userId._id.toString(),
             name: m.userId.name,
             email: m.email,
             avatar: m.userId.profileImage || "",
-            balance: memberBalances[m.userId._id.toString()] || 0,
-            status: "joined"
+            balance: Number(((memberBalances[m.userId._id.toString()] || 0) / 100).toFixed(2)),
+            status: m.status
         }));
 
     // Ensure creator is in the list
@@ -74,7 +164,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             name: trip.createdBy.name,
             avatar: trip.createdBy.profileImage,
             email: trip.createdBy.email,
-            balance: memberBalances[creatorId] || 0,
+          balance: Number(((memberBalances[creatorId] || 0) / 100).toFixed(2)),
             status: "joined"
         });
     }
@@ -89,7 +179,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       paidById: e.paidBy._id.toString(),
       splitBetween: e.splitBetween.map((u: any) => u._id.toString()),
       splitNames: e.splitBetween.map((u: any) => u.name.split(" ")[0]).join(", "),
-      perPerson: Math.round(e.amount / (e.splitBetween.length || 1)),
+      perPerson: Number(((e.amount / (e.splitBetween.length || 1))).toFixed(2)),
       date: new Date(e.date).toLocaleDateString(),
     }));
 
@@ -102,7 +192,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         startDate: new Date(trip.startDate).toDateString(),
         endDate: new Date(trip.endDate).toDateString(),
         totalExpense: totalTripExpense,
-        yourBalance: memberBalances[userId] || 0,
+        yourBalance: Number(((memberBalances[userId] || 0) / 100).toFixed(2)),
         status: trip.status, 
         members: activeMembers, // Only active members returned here
         expenses: formattedExpenses,

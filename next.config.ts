@@ -22,12 +22,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
+  turbopack: {},
 };
 
 // 2. Export the config wrapped with PWA

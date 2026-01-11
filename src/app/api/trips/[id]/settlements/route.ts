@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Trip from "@/models/Trip";
 import Expense from "@/models/Expense";
+import User from "@/models/User";
 import { getDataFromToken } from "@/lib/getDataFromToken";
 
 export async function GET(
@@ -14,103 +15,197 @@ export async function GET(
     await getDataFromToken(request);
     const { id } = await context.params;
 
-    // 1. Fetch Trip & Expenses
-    const trip = await Trip.findById(id).populate("members.userId", "name email profileImage");
+    // 1. Fetch Trip with all relationships
+    const trip = await Trip.findById(id)
+      .populate("members.userId", "name email profileImage")
+      .populate("createdBy", "name email profileImage");
+    
     if (!trip) return NextResponse.json({ message: "Trip not found" }, { status: 404 });
 
     const expenses = await Expense.find({ trip: id })
-      .populate("paidBy", "name")
-      .populate("splitBetween", "name");
+      .populate("paidBy", "name profileImage")
+      .populate("splitBetween", "name profileImage");
 
-    // 2. Calculate Net Balances
-    // Map: UserId -> Balance (Positive = Owed to them, Negative = They owe)
-    const balances: Record<string, number> = {};
-    const userDetails: Record<string, any> = {}; // Helper to store name/avatar
+    // 2. Calculate Net Balances using TOTAL PAID vs TOTAL SHARE methodology
+    const totalPaid: Record<string, number> = {}; // in paise
+    const totalShare: Record<string, number> = {}; // in paise
+    const netBalances: Record<string, number> = {}; // in paise
+    const userDetails: Record<string, any> = {};
+    const userRegistry: Set<string> = new Set();
 
-    // Initialize all members with 0 balance
-    trip.members.forEach((m: any) => {
-        if (m.userId) {
-            const uid = m.userId._id.toString();
-            balances[uid] = 0;
-            userDetails[uid] = {
-                name: m.userId.name,
-                avatar: m.userId.profileImage,
-                email: m.userId.email
-            };
-        }
-    });
-    // Add creator if missing
-    const creatorId = trip.createdBy.toString();
-    if (balances[creatorId] === undefined) {
-        // We'd ideally fetch creator details here if populate didn't get them, 
-        // but let's assume they are covered or we handle missing display gracefully
-        balances[creatorId] = 0;
-    }
-
-    // Process every expense
-    expenses.forEach((expense: any) => {
-      const payerId = expense.paidBy._id.toString();
-      const amount = expense.amount;
-      const splitCount = expense.splitBetween.length;
+    // Helper to register a member (only joined members)
+    const registerUser = (user: any, status?: string) => {
+      if (!user) return null;
+      if (status && status !== "joined") return null;
       
-      if (splitCount === 0) return;
+      const uid = user._id.toString();
+      if (!userRegistry.has(uid)) {
+        userRegistry.add(uid);
+        totalPaid[uid] = 0;
+        totalShare[uid] = 0;
+        userDetails[uid] = {
+          name: user.name,
+          avatar: user.profileImage,
+          email: user.email,
+        };
+      }
+      return uid;
+    };
 
-      const splitAmount = amount / splitCount;
+    // Register creator (always joined) and all joined members
+    registerUser(trip.createdBy, "joined");
+    trip.members.forEach((m: any) => registerUser(m.userId, m.status));
 
-      // Payer gets +Amount (Total they paid)
-      if (balances[payerId] !== undefined) {
-          balances[payerId] += amount;
+    // Process every expense - Calculate TOTAL PAID and TOTAL SHARE
+    expenses.forEach((expense: any) => {
+      const amount = Number(expense.amount);
+      const amountPaise = Math.round(amount * 100);
+      const payerId = expense.paidBy._id.toString();
+
+      // IMPORTANT: Ensure payer is registered (they might not be in members list initially)
+      if (!userRegistry.has(payerId)) {
+        console.warn(`⚠️  [Settlement] Registering payer ${expense.paidBy.name} who wasn't in initial members list`);
+        registerUser(expense.paidBy, "joined");
       }
 
-      // Each split member gets -SplitAmount (Their share)
-      expense.splitBetween.forEach((member: any) => {
-          const mid = member._id.toString();
-          if (balances[mid] !== undefined) {
-              balances[mid] -= splitAmount;
+      // Get beneficiaries (only registered joined members)
+      const beneficiaries = expense.splitBetween
+        .map((u: any) => {
+          const uid = u._id.toString();
+          // Ensure all beneficiaries are registered
+          if (!userRegistry.has(uid)) {
+            console.warn(`⚠️  [Settlement] Registering beneficiary ${u.name} who wasn't in initial members list`);
+            registerUser(u, "joined");
           }
+          return uid;
+        })
+        .filter((uid: string) => userRegistry.has(uid));
+
+      if (beneficiaries.length === 0) {
+        console.warn(`⚠️  [Settlement] Skipping expense "${expense.title}" - no valid beneficiaries`);
+        return; // Skip invalid expenses
+      }
+
+      // Calculate per-head share with fair rounding
+      const splitCount = beneficiaries.length;
+      const baseSharePaise = Math.floor(amountPaise / splitCount);
+      const remainderPaise = amountPaise - (baseSharePaise * splitCount);
+
+      // Update TOTAL PAID for payer
+      if (userRegistry.has(payerId)) {
+        totalPaid[payerId] += amountPaise;
+      }
+
+      // Update TOTAL SHARE for each beneficiary
+      beneficiaries.forEach((beneficiaryId: string, idx: number) => {
+        const share = baseSharePaise + (idx < remainderPaise ? 1 : 0);
+        totalShare[beneficiaryId] += share;
       });
+
+      // Log each expense processing
+      console.log(`  [Settlement] Expense: "${expense.title}" ₹${amount} paid by ${expense.paidBy.name}, split among ${beneficiaries.length} people`);
     });
 
-    // 3. Debt Simplification Algorithm
-    const debtors: { id: string; amount: number }[] = [];
-    const creditors: { id: string; amount: number }[] = [];
-
-    // Separate into two lists
-    Object.entries(balances).forEach(([uid, balance]) => {
-        // Round to 2 decimals to avoid floating point errors
-        const net = Math.round(balance * 100) / 100;
-        if (net < -0.01) debtors.push({ id: uid, amount: -net }); // Store as positive debt
-        else if (net > 0.01) creditors.push({ id: uid, amount: net });
+    // Calculate NET BALANCE for each member
+    // netBalance = totalPaid - totalShare
+    // Positive = they should RECEIVE, Negative = they should PAY
+    userRegistry.forEach((userId) => {
+      netBalances[userId] = totalPaid[userId] - totalShare[userId];
     });
+
+    // Validation: Sum of all balances MUST be 0
+    const balanceSum = Object.values(netBalances).reduce((sum, bal) => sum + bal, 0);
+    console.log(`[Settlement ${id}] Balance Calculation:`);
+    console.log(`  - Registered users: ${userRegistry.size}`);
+    console.log(`  - Expenses processed: ${expenses.length}`);
+    console.log(`  - Balance sum (paise): ${balanceSum} (${(balanceSum/100).toFixed(2)} rupees)`);
+    Object.entries(netBalances).forEach(([uid, bal]) => {
+      const rupees = (bal / 100).toFixed(2);
+      const userName = userDetails[uid]?.name || 'Unknown';
+      console.log(`    ${userName}: ${bal > 0 ? '+' : ''}${rupees} (${bal > 0 ? '+' : ''}${bal} paise)`);
+    });
+    if (Math.abs(balanceSum) > 1) {
+      console.warn(`⚠️  Settlement validation warning: sum is ${balanceSum} paise (should be 0)`);
+    } else {
+      console.log(`✓ Settlement validation passed`);
+    }
+
+    // 3. Production-Grade Greedy Settlement Algorithm
+    // Separate into receivers (positive balance) and payers (negative balance)
+    const receivers: Array<{ id: string; amount: number }> = [];
+    const payers: Array<{ id: string; amount: number }> = [];
+
+    Object.entries(netBalances).forEach(([userId, balance]) => {
+      if (balance > 1) { // More than 1 paisa to receive
+        receivers.push({ id: userId, amount: balance });
+      } else if (balance < -1) { // More than 1 paisa to pay
+        payers.push({ id: userId, amount: -balance }); // Store as positive
+      }
+    });
+
+    // Sort largest first for optimal greedy matching
+    receivers.sort((a, b) => b.amount - a.amount);
+    payers.sort((a, b) => b.amount - a.amount);
 
     const settlements = [];
 
-    // Greedy matching: Match biggest debtor with biggest creditor
-    // This isn't always optimal (NP-hard), but efficient enough for trip splits
-    let i = 0; // debtor index
-    let j = 0; // creditor index
+    // Greedy matching: Match payers with receivers to minimize transactions
+    let payerIdx = 0;
+    let receiverIdx = 0;
 
-    while (i < debtors.length && j < creditors.length) {
-        const debtor = debtors[i];
-        const creditor = creditors[j];
+    while (payerIdx < payers.length && receiverIdx < receivers.length) {
+      const payer = payers[payerIdx];
+      const receiver = receivers[receiverIdx];
 
-        // The amount to settle is the minimum of what debtor owes and creditor is owed
-        const amount = Math.min(debtor.amount, creditor.amount);
+      // Validate no self-payment
+      if (payer.id === receiver.id) {
+        console.error("Critical error: Self-payment detected");
+        receiverIdx++;
+        continue;
+      }
 
-        // Record transaction
-        settlements.push({
-            from: userDetails[debtor.id] || { name: "Unknown" },
-            to: userDetails[creditor.id] || { name: "Unknown" },
-            amount: Math.round(amount), // Round for display
-        });
+      // Settlement amount is minimum of what payer owes and receiver is owed
+      const settlementAmount = Math.min(payer.amount, receiver.amount);
 
-        // Update remaining amounts
-        debtor.amount -= amount;
-        creditor.amount -= amount;
+      if (settlementAmount <= 0) {
+        console.error("Critical error: Non-positive settlement amount");
+        break;
+      }
 
-        // Move indices if settled
-        if (debtor.amount < 0.01) i++;
-        if (creditor.amount < 0.01) j++;
+      // Record transaction
+      settlements.push({
+        from: userDetails[payer.id] || { name: "Unknown", email: "", avatar: "" },
+        to: userDetails[receiver.id] || { name: "Unknown", email: "", avatar: "" },
+        amount: Number((settlementAmount / 100).toFixed(2)), // Convert back to rupees
+      });
+
+      // Update remaining amounts
+      payer.amount -= settlementAmount;
+      receiver.amount -= settlementAmount;
+
+      // Move to next if settled
+      if (payer.amount <= 1) payerIdx++; // 1 paisa tolerance
+      if (receiver.amount <= 1) receiverIdx++;
+    }
+
+    // Final validation: Check if all balances are settled
+    const unsettledPayers = payers.slice(payerIdx).filter(p => p.amount > 1);
+    const unsettledReceivers = receivers.slice(receiverIdx).filter(r => r.amount > 1);
+    
+    console.log(`[Settlement ${id}] Generated Transactions:`);
+    console.log(`  - Total settlements: ${settlements.length}`);
+    console.log(`  - Payers: ${payers.length}, Receivers: ${receivers.length}`);
+    settlements.forEach((s, idx) => {
+      console.log(`    ${idx + 1}. ${s.from.name} → ${s.to.name}: ₹${s.amount}`);
+    });
+    
+    if (unsettledPayers.length > 0 || unsettledReceivers.length > 0) {
+      console.warn("⚠️  Settlement warning: Some balances remain unsettled", {
+        unsettledPayers: unsettledPayers.map(p => ({ id: p.id, amount: (p.amount/100).toFixed(2) })),
+        unsettledReceivers: unsettledReceivers.map(r => ({ id: r.id, amount: (r.amount/100).toFixed(2) }))
+      });
+    } else {
+      console.log(`✓ All balances settled successfully`);
     }
 
     return NextResponse.json({

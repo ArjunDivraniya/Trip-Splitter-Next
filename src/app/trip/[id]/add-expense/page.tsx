@@ -41,11 +41,13 @@ const AddExpense = () => {
         const res = await fetch(`/api/trips/${tripId}`);
         const data = await res.json();
         if (res.ok) {
-          setMembers(data.data.members);
+          // Include all members (both trip members and creator)
+          const allMembers = data.data.members || [];
+          setMembers(allMembers);
           // Default: First member pays & split all
-          if (data.data.members.length > 0) {
-             setPaidBy(data.data.members[0].id);
-             setSplitBetween(data.data.members.map((m: any) => m.id)); 
+          if (allMembers.length > 0) {
+             setPaidBy(allMembers[0].id);
+             setSplitBetween(allMembers.map((m: any) => m.id)); 
           }
         }
       } catch (error) {
