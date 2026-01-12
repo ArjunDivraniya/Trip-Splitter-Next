@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,6 @@ import {
   UserPlus,
   Loader2,
   Search,
-  Pencil,
   Trash2,
   ArrowRight,
   CheckCircle2
@@ -56,6 +55,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 // --- Icons & Colors Helper ---
 const categoryIcons: Record<string, any> = {
@@ -106,6 +112,11 @@ const TripOverview = () => {
 
   // Settle Up State
   const [settlements, setSettlements] = useState<any[]>([]);
+
+  // Expense Detail Drawer State
+  const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+  const [isExpenseSheetOpen, setIsExpenseSheetOpen] = useState(false);
+  const [isDeletingExpense, setIsDeletingExpense] = useState<string | null>(null);
 
   // Ensure client-side hydration is complete
   useEffect(() => {
@@ -289,6 +300,9 @@ const TripOverview = () => {
       if (res.ok) {
         toast.success("Expense deleted successfully!");
         // Background refresh to sync totals/balances accurately
+        if (selectedExpense?.id === expenseId) {
+          handleCloseExpense();
+        }
         fetchTripDetails();
       } else {
         // Revert on failure
@@ -304,33 +318,41 @@ const TripOverview = () => {
     }
   };
 
-  const toggleSplitMember = (memberId: string) => {
-    setEditSplitBetween(prev => 
-      prev.includes(memberId) 
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId]
-    );
+  const formatDateParts = (dateString: string) => {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return { month: "", day: "" };
+    return {
+      month: date.toLocaleString("en-US", { month: "short" }),
+      day: date.toLocaleString("en-US", { day: "2-digit" }),
+    };
   };
 
-  const selectAllMembers = () => {
-    const allMemberIds = trip?.members.map((m: any) => m.id) || [];
-    setEditSplitBetween(allMemberIds);
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+    return Number(value).toLocaleString();
   };
 
-  const deselectAllMembers = () => {
-    setEditSplitBetween([]);
+  const getStatusTone = (label?: string) => {
+    const lower = label?.toLowerCase() || "";
+    if (lower.includes("borrow")) return { text: "text-orange-500", pill: "bg-orange-500/10 text-orange-700" };
+    if (lower.includes("lent")) return { text: "text-green-600", pill: "bg-green-500/10 text-green-700" };
+    if (lower.includes("not involved")) return { text: "text-muted-foreground", pill: "bg-muted text-muted-foreground" };
+    return { text: "text-muted-foreground", pill: "bg-muted text-muted-foreground" };
   };
 
-  const CategoryIcon = (category: string) => {
-    const key = category ? category.toLowerCase() : "other";
-    const Icon = categoryIcons[key] || Receipt;
-    const colorClass = categoryColors[key] || "text-gray-500 bg-gray-100";
-    return (
-      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${colorClass}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-    );
+  const handleOpenExpense = (expense: any) => {
+    setSelectedExpense(expense);
+    setIsExpenseSheetOpen(true);
   };
+
+  const handleCloseExpense = () => {
+    setIsExpenseSheetOpen(false);
+    setSelectedExpense(null);
+  };
+
+  const selectedExpenseCategory = selectedExpense?.category?.toLowerCase() || "other";
+  const SelectedExpenseIcon = categoryIcons[selectedExpenseCategory] || Receipt;
+  const selectedExpenseTone = getStatusTone(selectedExpense?.statusLabel);
 
   if (!mounted || loading) {
     return (
@@ -488,99 +510,110 @@ const TripOverview = () => {
           {/* --- EXPENSES TAB --- */}
           <TabsContent value="expenses" className="space-y-4 animate-fade-in">
             {trip.expenses.length > 0 ? trip.expenses.map((expense: any) => {
-              const canEditDelete = trip.currentUserId === expense.paidById;
+              const canEditDelete = trip.currentUserId === expense.paidById && trip.status !== "completed";
+              const { month, day } = formatDateParts(expense.date);
+              const statusTone = getStatusTone(expense.statusLabel);
+              const categoryKey = expense.category ? expense.category.toLowerCase() : "other";
+              const Icon = categoryIcons[categoryKey] || Receipt;
+              const categoryClass = categoryColors[categoryKey] || categoryColors.other;
+
               return (
-              <Card key={expense.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => router.push(`/trip/${id}/expense/${expense.id}`)}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground font-medium">{expense.date}</p>
-                        {CategoryIcon(expense.category)}
+                <Card
+                  key={expense.id}
+                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => handleOpenExpense(expense)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col items-center justify-center w-12">
+                        <span className="text-xs text-muted-foreground">{month}</span>
+                        <span className="text-2xl font-semibold leading-none">{day}</span>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground text-base">{expense.title}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {expense.paidBy} paid <span className="font-medium">₹{expense.amount}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                          Split among: <span className="italic">{expense.splitNames}</span>
-                        </p>
+
+                      <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${categoryClass}`}>
+                        <Icon className="h-5 w-5" />
                       </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="text-right">
-                        <p className={`text-xs font-medium mb-1 ${
-                          expense.statusLabel === 'You borrowed' ? 'text-orange-500' :
-                          expense.statusLabel === 'You lent' ? 'text-green-600' :
-                          'text-muted-foreground'
-                        }`}>
-                          {expense.statusLabel}
-                        </p>
-                        {expense.rightAmount !== null && expense.rightAmount !== undefined ? (
-                          <p className={`font-bold text-lg ${
-                            expense.statusLabel === 'You borrowed' ? 'text-orange-500' :
-                            expense.statusLabel === 'You lent' ? 'text-green-600' :
-                            'text-foreground'
-                          }`}>₹{expense.rightAmount}</p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">-</p>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-lg font-semibold truncate">{expense.title}</h3>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {expense.paidBy} paid ₹{formatCurrency(expense.amount)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              {expense.splitNames ? expense.splitNames : "Split details not available"}
+                            </p>
+                          </div>
+
+                          <div className="text-right min-w-[110px]">
+                            <p className={`text-sm font-semibold ${statusTone.text}`}>{expense.statusLabel}</p>
+                            <p className={`text-xl font-bold leading-tight ${statusTone.text}`}>
+                              {expense.rightAmount !== null && expense.rightAmount !== undefined
+                                ? `₹${formatCurrency(expense.rightAmount)}`
+                                : "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {canEditDelete && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditExpense(expense);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 text-red-600 hover:text-red-700"
+                                  disabled={isDeletingExpense === expense.id}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {isDeletingExpense === expense.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <Trash2 className="h-4 w-4" />
+                                      <span>Delete</span>
+                                    </div>
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{expense.title}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteExpense(expense.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         )}
                       </div>
-                      {canEditDelete && trip.status !== "completed" && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditExpense(expense);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                disabled={isDeletingExpense === expense.id}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {isDeletingExpense === expense.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{expense.title}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteExpense(expense.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}) : (
+                  </CardContent>
+                </Card>
+              );
+            }) : (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg">
                     <p className="text-muted-foreground">No expenses added yet.</p>
                     <p className="text-xs text-muted-foreground mt-1">Tap the + button to add one!</p>
@@ -769,6 +802,170 @@ const TripOverview = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Expense Detail Drawer */}
+      <Sheet
+        open={isExpenseSheetOpen}
+        onOpenChange={(open) => {
+          setIsExpenseSheetOpen(open);
+          if (!open) setSelectedExpense(null);
+        }}
+      >
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto sm:max-w-3xl sm:mx-auto">
+          {selectedExpense ? (
+            <div className="space-y-6">
+              <SheetHeader>
+                <div className="flex items-start gap-4">
+                  <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${categoryColors[selectedExpenseCategory] || categoryColors.other}`}>
+                    <SelectedExpenseIcon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <SheetTitle className="text-xl font-bold truncate">{selectedExpense.title}</SheetTitle>
+                    <SheetDescription className="text-sm flex flex-wrap items-center gap-3 mt-2">
+                      <span>{selectedExpense.date}</span>
+                      <span className="text-muted-foreground">•</span>
+                      <span>{selectedExpense.paidBy} paid ₹{formatCurrency(selectedExpense.amount)}</span>
+                    </SheetDescription>
+                  </div>
+                  <Badge className={`${selectedExpenseTone.pill} capitalize`}>
+                    {selectedExpense.statusLabel}
+                  </Badge>
+                </div>
+              </SheetHeader>
+
+              <Card>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total</p>
+                    <p className="text-2xl font-bold">₹{formatCurrency(selectedExpense.amount)}</p>
+                    {selectedExpense.yourShare !== undefined && (
+                      <p className={`text-sm mt-1 ${selectedExpenseTone.text}`}>
+                        Your share: ₹{formatCurrency(selectedExpense.yourShare)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Category</p>
+                    <p className="font-semibold capitalize">{selectedExpense.category || "other"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Paid By</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const payer = trip?.members?.find((m: any) => m.id === selectedExpense.paidById);
+                    return (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border">
+                          <AvatarImage src={payer?.avatar} />
+                          <AvatarFallback>{payer?.name?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{payer?.name || selectedExpense.paidBy}</p>
+                          <p className="text-xs text-muted-foreground">{payer?.email}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Split Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {selectedExpense.breakdown?.length ? (
+                    selectedExpense.breakdown.map((member: any) => (
+                      <div key={member.id} className="flex items-center justify-between rounded-lg bg-muted/60 p-3">
+                        <span className="text-sm font-medium">{member.name}</span>
+                        <span className="font-semibold">₹{formatCurrency(member.amount)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center">No breakdown available.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Split Type</p>
+                    <p className="font-semibold capitalize">{selectedExpense.splitType || "equally"}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Date</p>
+                    <p className="font-semibold">{selectedExpense.date}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleCloseExpense();
+                    router.push(`/trip/${id}/expense/${selectedExpense.id}`);
+                  }}
+                >
+                  Open full details
+                </Button>
+
+                {trip.currentUserId === selectedExpense.paidById && trip.status !== "completed" && (
+                  <>
+                    <Button onClick={() => {
+                      handleCloseExpense();
+                      handleEditExpense(selectedExpense);
+                    }}>
+                      Edit expense
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          disabled={isDeletingExpense === selectedExpense.id}
+                        >
+                          {isDeletingExpense === selectedExpense.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            "Delete expense"
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Expense?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{selectedExpense.title}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteExpense(selectedExpense.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Select an expense card to view details.</p>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* 5. Floating Action Button (Add Expense) */}
       {trip.status !== "completed" && (

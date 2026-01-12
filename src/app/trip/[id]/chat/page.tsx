@@ -172,6 +172,9 @@
 
 "use client";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -188,11 +191,8 @@ const ChatPage = () => {
   }, []);
 
   if (!mounted) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="animate-spin h-8 w-8" />
-      </div>
-    );
+    // Avoid rendering on the server to prevent hydration mismatches
+    return null;
   }
 
   return (
