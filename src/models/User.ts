@@ -13,8 +13,14 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, "Please provide a password"],
+    required: false, // Optional for OAuth users (Google, etc.)
+    default: null,
     select: false, // Security: Don't return password by default
+  },
+  authProvider: {
+    type: String,
+    enum: ["credentials", "google"],
+    default: "credentials",
   },
   phone: {
     type: String,

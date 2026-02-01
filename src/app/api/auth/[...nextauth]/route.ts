@@ -9,7 +9,6 @@ import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 
@@ -94,15 +93,13 @@ export const authOptions: NextAuthOptions = {
           return true;
         }
 
-        // Create new user if doesn't exist
+        // Create new user if doesn't exist (NO random password for OAuth)
         try {
-          const randomPassword = crypto.randomBytes(32).toString("hex");
-          const hashedPassword = await bcrypt.hash(randomPassword, 10);
-
           const newUser = await User.create({
             name: user.name || profile?.name || "User",
             email: user.email,
-            password: hashedPassword,
+            password: null, // No password for OAuth users
+            authProvider: "google",
             profileImage:
               user.image || (profile && "picture" in profile ? profile.picture : ""),
           });
