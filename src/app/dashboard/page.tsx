@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Bell, LogOut, User, Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -27,20 +28,27 @@ interface Trip {
 
 const Dashboard = () => {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [userName, setUserName] = useState("User");
   const [userAvatar, setUserAvatar] = useState("");
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
   // --- 1. Fetch Data Function ---
   const fetchData = async () => {
     try {
-      // Fetch User Profile
-      const userRes = await fetch("/api/user/me");
-      if (!userRes.ok) throw new Error("Auth failed");
-      const userData = await userRes.json();
-      setUserName(userData.data.name);
-      setUserAvatar(userData.data.profileImage);
+      // Use session data directly
+      if (session?.user?.id) {
+        setUserName(session.user.name || "User");
+        setUserAvatar(session.user.image || "");
+      }
 
       // Fetch User Trips (Real Data)
       const tripRes = await fetch("/api/trips/user");
@@ -52,15 +60,17 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error("Dashboard load failed:", error);
-      router.push("/login");
+      toast.error("Failed to load dashboard");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [router]);
+    if (status === "authenticated") {
+      fetchData();
+    }
+  }, [status]);
 
   // --- 2. Handle Invitation Response ---
   const handleResponse = async (tripId: string, action: "accept" | "reject") => {
@@ -84,13 +94,11 @@ const Dashboard = () => {
   // --- 3. Handle Logout ---
   const handleLogout = async () => {
     try {
-        await fetch("/api/auth/logout"); // Ensure this API exists or clears cookie
-        // Fallback clear cookie logic
-        document.cookie = "token=; Max-Age=0; path=/;";
-        router.push("/login");
-        toast.success("Logged out");
-    } catch (e) { 
-        router.push("/login"); 
+      await signOut({ redirect: false });
+      toast.success("Logged out");
+      router.push("/login");
+    } catch (e) {
+      router.push("/login");
     }
   };
 

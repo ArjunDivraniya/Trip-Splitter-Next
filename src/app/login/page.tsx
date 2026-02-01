@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -12,8 +13,23 @@ import { Loader2, Mail, Lock } from "lucide-react";
 
 const Login = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) {
+      setLoading(false);
+      if (error === "OAuthSignin") {
+        toast.error("Google sign-in failed. Check Google OAuth settings.");
+      } else if (error === "CredentialsSignin") {
+        toast.error("Invalid email or password.");
+      } else {
+        toast.error("Authentication failed. Please try again.");
+      }
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -24,21 +40,28 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+      const result = await signIn("credentials", {
+        redirect: false,
+        callbackUrl: "/dashboard",
+        email: formData.email,
+        password: formData.password,
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Login failed");
+      if (result?.error) {
+        toast.error("Invalid email or password.");
+        setLoading(false);
+        return;
+      }
 
-      toast.success("Welcome back!");
-      router.refresh();
-      router.push("/dashboard");
+      if (result?.ok) {
+        router.push("/dashboard");
+        return;
+      }
+
+      toast.error("Login failed. Please try again.");
+      setLoading(false);
     } catch (error: any) {
-      toast.error(error.message);
-    } finally {
+      toast.error(error.message || "Login failed");
       setLoading(false);
     }
   };
@@ -95,6 +118,28 @@ const Login = () => {
 
               <Button className="w-full h-11 text-base gradient-primary hover:opacity-90" type="submit" disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign in"}
+              </Button>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/70" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11"
+                disabled={loading}
+                onClick={() => {
+                  setLoading(true);
+                  signIn("google", { callbackUrl: "/dashboard" });
+                }}
+              >
+                Continue with Google
               </Button>
             </form>
           </CardContent>
