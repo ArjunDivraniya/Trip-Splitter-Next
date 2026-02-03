@@ -96,21 +96,17 @@ export const authOptions: NextAuthOptions = {
             return true;
           }
 
-          // Create new user if doesn't exist. Create a random hashed password
+          // Create new user if doesn't exist. Store `password: null` for OAuth users
           try {
             const name =
               user.name || (profile && "name" in profile ? profile.name : undefined);
             const picture =
               user.image || (profile && "picture" in profile ? profile.picture : undefined);
 
-            // Generate random password to satisfy schema and hash it
-            const randomPass = Math.random().toString(36).slice(2, 12);
-            const hashed = await bcrypt.hash(randomPass, 10);
-
             const newUser = await User.create({
               name: name || (email ? email.split("@")[0] : "User"),
               email,
-              password: hashed,
+              password: null,
               authProvider: "google",
               profileImage: picture || "",
             });
@@ -139,11 +135,8 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) return url;
-      return baseUrl + "/dashboard";
+      // Always send users to the dashboard after successful sign-in
+      return `${baseUrl}/dashboard`;
     },
   },
   pages: {
