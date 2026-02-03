@@ -7,7 +7,7 @@ import { deleteFromCloudinary } from "@/lib/cloudinary";
 export async function DELETE(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = await getDataFromToken(request);
     const user = await User.findById(userId);
 
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });

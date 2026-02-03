@@ -51,11 +51,26 @@ const Dashboard = () => {
       }
 
       // Fetch User Trips (Real Data)
-      const tripRes = await fetch("/api/trips/user");
-      const tripData = await tripRes.json();
-      
-      if (tripRes.ok) {
-        setTrips(tripData.data);
+      // If cookies are not yet present immediately after redirect from sign-in,
+      // the first request may return 401. Retry once after warming session.
+      let tripsResponse: Response | null = null;
+      let attempts = 0;
+      while (attempts < 2) {
+        const res = await fetch("/api/trips/user");
+        if (res.status === 401) {
+          // Warm up NextAuth session endpoint and retry after a short delay
+          await fetch("/api/auth/session");
+          await new Promise((r) => setTimeout(r, 300));
+          attempts += 1;
+          continue;
+        }
+        tripsResponse = res;
+        break;
+      }
+
+      if (tripsResponse) {
+        const tripData = await tripsResponse.json();
+        if (tripsResponse.ok) setTrips(tripData.data);
       }
 
     } catch (error) {

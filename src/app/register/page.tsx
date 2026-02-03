@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Loader2, Mail, Lock, User } from "lucide-react";
 
 const Register = () => {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -20,6 +21,13 @@ const Register = () => {
     password: "",
     confirmPassword: "",
   });
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      router.push("/dashboard");
+    }
+  }, [status, session, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -93,13 +101,15 @@ const Register = () => {
   };
 
   const handleGoogleSignup = async () => {
+    setLoading(true);
     try {
       await signIn("google", {
         redirect: true,
         callbackUrl: "/dashboard",
       });
     } catch (error: any) {
-      toast.error("Google signup failed");
+      toast.error("Google signup failed. Please try again.");
+      setLoading(false);
     }
   };
 

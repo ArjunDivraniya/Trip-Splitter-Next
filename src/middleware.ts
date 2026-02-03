@@ -24,6 +24,7 @@ export const config = {
     "/dashboard/:path*",
     "/trip/:path*",
     "/profile/:path*",
+    "/api/trips/:path*",
     "/create-trip/:path*",
     "/settings/:path*",
     "/notifications/:path*",

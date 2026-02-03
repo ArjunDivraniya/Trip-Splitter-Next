@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -14,8 +14,16 @@ import { Loader2, Mail, Lock } from "lucide-react";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      router.push("/dashboard");
+    }
+  }, [status, session, router]);
 
   useEffect(() => {
     const error = searchParams.get("error");
@@ -134,9 +142,17 @@ function LoginForm() {
                 variant="outline"
                 className="w-full h-11"
                 disabled={loading}
-                onClick={() => {
+                onClick={async () => {
                   setLoading(true);
-                  signIn("google", { callbackUrl: "/dashboard" });
+                  try {
+                    await signIn("google", { 
+                      redirect: true,
+                      callbackUrl: "/dashboard" 
+                    });
+                  } catch (error) {
+                    toast.error("Google sign-in failed. Please try again.");
+                    setLoading(false);
+                  }
                 }}
               >
                 Continue with Google

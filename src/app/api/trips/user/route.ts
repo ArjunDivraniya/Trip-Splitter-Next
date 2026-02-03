@@ -7,7 +7,22 @@ import { getDataFromToken } from "@/lib/getDataFromToken";
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    let userId: string;
+    try {
+      userId = await getDataFromToken(request);
+    } catch (authErr: any) {
+      // Log cookie/header info to help debug missing token
+      try {
+        const cookieHeader = request.headers.get("cookie");
+        console.warn("/api/trips/user auth failed. cookie header:", cookieHeader);
+        console.warn("Request cookies keys:", Array.from(request.cookies.keys()));
+      } catch (e) {
+        console.warn("Failed to read cookie header for debug:", e);
+      }
+
+      // Return 401 for authentication problems instead of 500
+      return NextResponse.json({ message: authErr?.message || "Authentication required" }, { status: 401 });
+    }
 
     // Find trips
     const trips = await Trip.find({

@@ -13,6 +13,7 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 
 export const authOptions: NextAuthOptions = {
+  debug: process.env.NODE_ENV === "development",
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -74,43 +75,53 @@ export const authOptions: NextAuthOptions = {
       account: Account | null;
       profile?: Profile;
     }) {
-      // For Google OAuth
-      if (account?.provider === "google") {
-        if (!user.email) return false;
+        // For Google OAuth
+        if (account?.provider === "google") {
+          const email =
+            user.email || (profile && "email" in profile ? profile.email : undefined);
+          if (!email) return false;
 
-        await dbConnect();
+          await dbConnect();
 
-        // Check if user already exists
-        let existingUser = await User.findOne({ email: user.email });
+          // Check if user already exists
+          let existingUser = await User.findOne({ email });
 
-        if (existingUser) {
-          // Update profile image if Google has one
-          if (!existingUser.profileImage && user.image) {
-            existingUser.profileImage = user.image;
-            await existingUser.save();
+          if (existingUser) {
+            // Update profile image if Google has one
+            if (!existingUser.profileImage && user.image) {
+              existingUser.profileImage = user.image;
+              await existingUser.save();
+            }
+            user.id = existingUser._id.toString();
+            return true;
           }
-          user.id = existingUser._id.toString();
-          return true;
-        }
 
-        // Create new user if doesn't exist (NO random password for OAuth)
-        try {
-          const newUser = await User.create({
-            name: user.name || profile?.name || "User",
-            email: user.email,
-            password: null, // No password for OAuth users
-            authProvider: "google",
-            profileImage:
-              user.image || (profile && "picture" in profile ? profile.picture : ""),
-          });
+          // Create new user if doesn't exist. Create a random hashed password
+          try {
+            const name =
+              user.name || (profile && "name" in profile ? profile.name : undefined);
+            const picture =
+              user.image || (profile && "picture" in profile ? profile.picture : undefined);
 
-          user.id = newUser._id.toString();
-          return true;
-        } catch (error) {
-          console.error("Error creating user:", error);
-          return false;
+            // Generate random password to satisfy schema and hash it
+            const randomPass = Math.random().toString(36).slice(2, 12);
+            const hashed = await bcrypt.hash(randomPass, 10);
+
+            const newUser = await User.create({
+              name: name || (email ? email.split("@")[0] : "User"),
+              email,
+              password: hashed,
+              authProvider: "google",
+              profileImage: picture || "",
+            });
+
+            user.id = newUser._id.toString();
+            return true;
+          } catch (error) {
+            console.error("Error creating user:", error);
+            return false;
+          }
         }
-      }
 
       // For credentials provider
       return true;

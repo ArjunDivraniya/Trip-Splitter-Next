@@ -6,7 +6,7 @@ import { getDataFromToken } from "@/lib/getDataFromToken";
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = await getDataFromToken(request);
     const user = await User.findOne({ _id: userId });
     
     if (!user) {

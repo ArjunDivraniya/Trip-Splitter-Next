@@ -7,7 +7,7 @@ import { uploadToCloudinary, deleteFromCloudinary } from "@/lib/cloudinary";
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
-    const userId = getDataFromToken(request);
+    const userId = await getDataFromToken(request);
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
