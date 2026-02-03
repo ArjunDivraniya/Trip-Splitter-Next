@@ -213,13 +213,14 @@ const Register = () => {
               </div>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-11"
-              onClick={handleGoogleSignup}
-            >
-              Sign up with Google
+            <Button type="button" variant="outline" className="w-full h-11 flex items-center justify-center gap-3" onClick={handleGoogleSignup}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 533.5 544.3" className="h-4 w-4">
+                <path fill="#4285F4" d="M533.5 278.4c0-17.4-1.6-34.1-4.7-50.4H272v95.4h146.9c-6.3 34-25 62.8-53.4 82v68.1h86.4c50.4-46.5 81.6-114.8 81.6-195.1z" />
+                <path fill="#34A853" d="M272 544.3c71.2 0 131-23.6 174.6-64.1l-86.4-68.1c-24.1 16.2-54.9 25.7-88.2 25.7-67.8 0-125.2-45.8-145.7-107.6H37.3v67.6C80.7 487.3 169.4 544.3 272 544.3z" />
+                <path fill="#FBBC05" d="M126.3 327.8c-6-17.5-9.4-36.1-9.4-55s3.4-37.5 9.4-55V150.2H37.3C13.3 192.3 0 236.4 0 272.8s13.3 80.5 37.3 122.6l89-67.6z" />
+                <path fill="#EA4335" d="M272 109.7c37.9-.6 72 14.6 98.9 42.7l74.1-74C403 25 343.4 0 272 0 169.4 0 80.7 57 37.3 150.2l89 67.6C146.8 155.5 204.2 109.7 272 109.7z" />
+              </svg>
+              <span>Sign up with Google</span>
             </Button>
           </CardContent>
           <CardFooter className="flex justify-center border-t bg-muted/20 py-4">
