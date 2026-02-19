@@ -2,7 +2,9 @@ import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://smartsplit-app-cv3e.onrender.com";
+// Backend URL from environment - all routes are constructed in this file
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://smartsplit-app-cv3e.onrender.com";
+const API_URL = `${BACKEND_URL}/api`;
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -21,7 +23,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           // Call Express Backend Login Endpoint
-          const response = await fetch(`${API_URL}/api/auth/login`, {
+          const response = await fetch(`${API_URL}/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -100,7 +102,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google" && profile) {
         try {
           const registerResponse = await fetch(
-            `${API_URL}/api/auth/register`,
+            `${API_URL}/auth/register`,
             {
               method: "POST",
               headers: {

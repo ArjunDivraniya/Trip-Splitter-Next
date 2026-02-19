@@ -1,9 +1,15 @@
 /**
  * API Client for Trip Splitter Express Backend
- * Handles all communication with: https://smartsplit-app-cv3e.onrender.com/api
+ * Handles all communication with express backend
+ * 
+ * Base Backend URL: https://smartsplit-app-cv3e.onrender.com (from NEXT_PUBLIC_BACKEND_URL env)
+ * API Path Prefix: /api
+ * 
+ * All routes are constructed as: {BACKEND_URL}/api{endpoint}
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://smartsplit-app-cv3e.onrender.com/api';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://smartsplit-app-cv3e.onrender.com';
+const API_URL = `${BACKEND_URL}/api`;
 
 interface ApiRequest {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -316,8 +322,7 @@ export const notifications = {
  */
 export async function healthCheck(): Promise<boolean> {
   try {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://smartsplit-app-cv3e.onrender.com';
-    const response = await fetch(`${backendUrl}/health`);
+    const response = await fetch(`${BACKEND_URL}/health`);
     return response.ok;
   } catch {
     return false;
