@@ -1,151 +1,157 @@
-import NextAuth, {
-  type Account,
-  type NextAuthOptions,
-  type Profile,
-  type Session,
-  type User as NextAuthUser,
-} from "next-auth";
-import type { JWT } from "next-auth/jwt";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import bcrypt from "bcryptjs";
-import dbConnect from "@/lib/dbConnect";
-import User from "@/models/User";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://smartsplit-app-cv3e.onrender.com";
 
 export const authOptions: NextAuthOptions = {
-  debug: process.env.NODE_ENV === "development",
   providers: [
+    // Credentials Provider - Login with Email/Password via Express Backend
     CredentialsProvider({
+      id: "credentials",
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(
-        credentials: Record<"email" | "password", string> | undefined
-      ) {
+      async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log("No credentials provided");
-          return null;
+          throw new Error("Missing email or password");
         }
 
         try {
-          await dbConnect();
-          const user = await User.findOne({ email: credentials.email }).select(
-            "+password"
-          );
+          // Call Express Backend Login Endpoint
+          const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+            credentials: "include",
+          });
 
-          if (!user) {
-            console.log("User not found:", credentials.email);
-            return null;
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.message || "Login failed");
           }
 
-          const isMatch = await bcrypt.compare(credentials.password, user.password);
-          if (!isMatch) {
-            console.log("Password mismatch for:", credentials.email);
-            return null;
-          }
-
-          console.log("Auth successful for:", credentials.email);
+          // Return user object with token
           return {
-            id: user._id.toString(),
-            name: user.name,
-            email: user.email,
-            image: user.profileImage || undefined,
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            image: data.user.profileImage,
+            token: data.token,
           };
-        } catch (error) {
-          console.error("Auth error:", error);
-          return null;
+        } catch (error: any) {
+          console.error("Backend login error:", error);
+          throw new Error(error.message || "Backend authentication failed");
         }
       },
     }),
+
+    // Google OAuth Provider
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
-  session: { strategy: "jwt" },
+
   callbacks: {
-    async signIn({
-      user,
-      account,
-      profile,
-    }: {
-      user: NextAuthUser;
-      account: Account | null;
-      profile?: Profile;
-    }) {
-        // For Google OAuth
-        if (account?.provider === "google") {
-          const email =
-            user.email || (profile && "email" in profile ? profile.email : undefined);
-          if (!email) return false;
-
-          await dbConnect();
-
-          // Check if user already exists
-          let existingUser = await User.findOne({ email });
-
-          if (existingUser) {
-            // Update profile image if Google has one
-            if (!existingUser.profileImage && user.image) {
-              existingUser.profileImage = user.image;
-              await existingUser.save();
-            }
-            user.id = existingUser._id.toString();
-            return true;
-          }
-
-          // Create new user if doesn't exist. Store `password: null` for OAuth users
-          try {
-            const name =
-              user.name || (profile && "name" in profile ? profile.name : undefined);
-            const picture =
-              user.image || (profile && "picture" in profile ? profile.picture : undefined);
-
-            const newUser = await User.create({
-              name: name || (email ? email.split("@")[0] : "User"),
-              email,
-              password: null,
-              authProvider: "google",
-              profileImage: picture || "",
-            });
-
-            user.id = newUser._id.toString();
-            return true;
-          } catch (error) {
-            console.error("Error creating user:", error);
-            return false;
-          }
-        }
-
-      // For credentials provider
-      return true;
-    },
-    async jwt({ token, user }: { token: JWT; user?: NextAuthUser | null }) {
-      if (user?.id) {
+    // JWT Callback - Store token in JWT
+    async jwt({ token, user, account }) {
+      if (user) {
         token.id = user.id;
+        token.email = user.email;
+        // Store backend JWT token if from credentials provider
+        if ((user as any).token) {
+          token.backendToken = (user as any).token;
+        }
       }
+
+      // Handle Google OAuth
+      if (account?.provider === "google") {
+        token.provider = "google";
+      }
+
       return token;
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (session.user && token?.id) {
+
+    // Session Callback - Return user info in session
+    async session({ session, token }) {
+      if (session.user) {
         session.user.id = token.id as string;
+        session.user.email = token.email as string;
       }
+      // Store backend token in session for API calls
+      (session as any).backendToken = token.backendToken;
+      (session as any).provider = token.provider;
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      // Always send users to the dashboard after successful sign-in
-      return `${baseUrl}/dashboard`;
+
+    // Sign-in Callback - Sync Google OAuth users with backend
+    async signIn({ user, account, profile }) {
+      // If Google OAuth, try to create/sync user with backend
+      if (account?.provider === "google" && profile) {
+        try {
+          const registerResponse = await fetch(
+            `${API_URL}/api/auth/register`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: profile.email,
+                name: profile.name,
+                // For Google OAuth, we use a placeholder password
+                // Backend should handle social logins differently
+                password: `google_${profile.sub || profile.id}`,
+              }),
+              credentials: "include",
+            }
+          );
+
+          if (!registerResponse.ok) {
+            console.log(
+              "User might already exist or backend error:",
+              await registerResponse.text()
+            );
+            // Continue anyway - user signup might fail if duplicate
+          }
+        } catch (error) {
+          console.error("Error syncing Google user with backend:", error);
+          // Continue with sign-in even if sync fails
+        }
+      }
+
+      return true;
     },
   },
+
   pages: {
     signIn: "/login",
     error: "/login",
   },
+
+  session: {
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+
+  jwt: {
+    secret: process.env.NEXTAUTH_SECRET,
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  },
+
   secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };

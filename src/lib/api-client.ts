@@ -1,9 +1,9 @@
 /**
  * API Client for Trip Splitter Express Backend
- * Handles all communication with: https://smartsplit-app-cv3e.onrender.com
+ * Handles all communication with: https://smartsplit-app-cv3e.onrender.com/api
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://smartsplit-app-cv3e.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://smartsplit-app-cv3e.onrender.com/api';
 
 interface ApiRequest {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -34,7 +34,11 @@ export async function apiCall<T = any>(
     token,
   } = options;
 
-  const url = `${API_URL}${endpoint}`;
+  // Construct URL - endpoint might already have /api prefix
+  let url = endpoint.startsWith('http') ? endpoint : `${API_URL}${endpoint}`;
+  
+  // Remove double /api if present
+  url = url.replace('/api//api', '/api');
 
   // Prepare headers
   const requestHeaders: Record<string, string> = {
@@ -85,19 +89,19 @@ export async function apiCall<T = any>(
  */
 export const auth = {
   register: (email: string, password: string, name: string) =>
-    apiCall('/api/auth/register', {
+    apiCall('/auth/register', {
       method: 'POST',
       body: { email, password, name },
     }),
 
   login: (email: string, password: string) =>
-    apiCall('/api/auth/login', {
+    apiCall('/auth/login', {
       method: 'POST',
       body: { email, password },
     }),
 
   logout: () =>
-    apiCall('/api/auth/logout', {
+    apiCall('/auth/logout', {
       method: 'POST',
     }),
 };
@@ -107,26 +111,26 @@ export const auth = {
  */
 export const user = {
   getProfile: (token: string) =>
-    apiCall('/api/user/me', {
+    apiCall('/user/me', {
       method: 'GET',
       token,
     }),
 
   updateProfile: (token: string, data: any) =>
-    apiCall('/api/user/update', {
+    apiCall('/user/update', {
       method: 'PUT',
       body: data,
       token,
     }),
 
   searchUsers: (token: string, query: string) =>
-    apiCall(`/api/user/search?query=${query}`, {
+    apiCall(`/user/search?query=${query}`, {
       method: 'GET',
       token,
     }),
 
   deleteAccount: (token: string) =>
-    apiCall('/api/user/delete-account', {
+    apiCall('/user/delete-account', {
       method: 'DELETE',
       token,
     }),
@@ -137,40 +141,40 @@ export const user = {
  */
 export const trips = {
   create: (token: string, tripData: any) =>
-    apiCall('/api/trips/create', {
+    apiCall('/trips/create', {
       method: 'POST',
       body: tripData,
       token,
     }),
 
   getUserTrips: (token: string) =>
-    apiCall('/api/trips/user', {
+    apiCall('/trips/user', {
       method: 'GET',
       token,
     }),
 
   getTripDetails: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}`, {
+    apiCall(`/trips/${tripId}`, {
       method: 'GET',
       token,
     }),
 
   addMember: (token: string, tripId: string, email: string) =>
-    apiCall(`/api/trips/${tripId}/add-member`, {
+    apiCall(`/trips/${tripId}/add-member`, {
       method: 'POST',
       body: { email },
       token,
     }),
 
   respondToInvite: (token: string, tripId: string, action: 'accept' | 'reject') =>
-    apiCall(`/api/trips/${tripId}/respond`, {
+    apiCall(`/trips/${tripId}/respond`, {
       method: 'POST',
       body: { action },
       token,
     }),
 
   endTrip: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}/end`, {
+    apiCall(`/trips/${tripId}/end`, {
       method: 'POST',
       token,
     }),
@@ -181,21 +185,21 @@ export const trips = {
  */
 export const expenses = {
   add: (token: string, expenseData: any) =>
-    apiCall('/api/expenses/add', {
+    apiCall('/expenses/add', {
       method: 'POST',
       body: expenseData,
       token,
     }),
 
   update: (token: string, expenseId: string, expenseData: any) =>
-    apiCall(`/api/expenses/${expenseId}`, {
+    apiCall(`/expenses/${expenseId}`, {
       method: 'PUT',
       body: expenseData,
       token,
     }),
 
   delete: (token: string, expenseId: string) =>
-    apiCall(`/api/expenses/${expenseId}`, {
+    apiCall(`/expenses/${expenseId}`, {
       method: 'DELETE',
       token,
     }),
@@ -206,7 +210,7 @@ export const expenses = {
  */
 export const settlements = {
   getSettlements: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}/settlements`, {
+    apiCall(`/trips/${tripId}/settlements`, {
       method: 'GET',
       token,
     }),
@@ -217,7 +221,7 @@ export const settlements = {
  */
 export const analytics = {
   getAnalytics: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}/analytics`, {
+    apiCall(`/trips/${tripId}/analytics`, {
       method: 'GET',
       token,
     }),
@@ -228,13 +232,13 @@ export const analytics = {
  */
 export const itinerary = {
   getItinerary: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}/itinerary`, {
+    apiCall(`/trips/${tripId}/itinerary`, {
       method: 'GET',
       token,
     }),
 
   addActivity: (token: string, tripId: string, activityData: any) =>
-    apiCall(`/api/trips/${tripId}/itinerary`, {
+    apiCall(`/trips/${tripId}/itinerary`, {
       method: 'POST',
       body: activityData,
       token,
@@ -246,27 +250,27 @@ export const itinerary = {
  */
 export const packing = {
   getPackingList: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}/packing`, {
+    apiCall(`/trips/${tripId}/packing`, {
       method: 'GET',
       token,
     }),
 
   addItem: (token: string, tripId: string, itemData: any) =>
-    apiCall(`/api/trips/${tripId}/packing`, {
+    apiCall(`/trips/${tripId}/packing`, {
       method: 'POST',
       body: itemData,
       token,
     }),
 
   toggleItem: (token: string, tripId: string, itemData: any) =>
-    apiCall(`/api/trips/${tripId}/packing`, {
+    apiCall(`/trips/${tripId}/packing`, {
       method: 'PUT',
       body: itemData,
       token,
     }),
 
   deleteItem: (token: string, tripId: string, itemId: string) =>
-    apiCall(`/api/trips/${tripId}/packing?itemId=${itemId}`, {
+    apiCall(`/trips/${tripId}/packing?itemId=${itemId}`, {
       method: 'DELETE',
       token,
     }),
@@ -277,13 +281,13 @@ export const packing = {
  */
 export const chat = {
   getMessages: (token: string, tripId: string) =>
-    apiCall(`/api/trips/${tripId}/chat`, {
+    apiCall(`/trips/${tripId}/chat`, {
       method: 'GET',
       token,
     }),
 
   sendMessage: (token: string, tripId: string, content: string) =>
-    apiCall(`/api/trips/${tripId}/chat`, {
+    apiCall(`/trips/${tripId}/chat`, {
       method: 'POST',
       body: { content },
       token,
@@ -295,13 +299,13 @@ export const chat = {
  */
 export const notifications = {
   getNotifications: (token: string) =>
-    apiCall('/api/notifications', {
+    apiCall('/notifications', {
       method: 'GET',
       token,
     }),
 
   markAllAsRead: (token: string) =>
-    apiCall('/api/notifications', {
+    apiCall('/notifications', {
       method: 'PUT',
       token,
     }),
@@ -312,8 +316,9 @@ export const notifications = {
  */
 export async function healthCheck(): Promise<boolean> {
   try {
-    const response = await apiCall('/health');
-    return response.success;
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://smartsplit-app-cv3e.onrender.com';
+    const response = await fetch(`${backendUrl}/health`);
+    return response.ok;
   } catch {
     return false;
   }

@@ -174,7 +174,7 @@ export default function BackendTestPage() {
         <h1 className="text-4xl font-bold text-white mb-2">Backend Test Dashboard</h1>
         <p className="text-slate-400 mb-8">
           Test all Trip Splitter API endpoints | Backend:{' '}
-          <span className="text-cyan-400 font-mono">https://smartsplit-app-cv3e.onrender.com</span>
+          <span className="text-cyan-400 font-mono">https://smartsplit-app-cv3e.onrender.com/api</span>
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -380,7 +380,9 @@ export default function BackendTestPage() {
           <h2 className="text-white font-semibold mb-4">API Documentation</h2>
           <div className="text-slate-300 text-sm space-y-2">
             <p>✅ Backend URL: <span className="text-cyan-400">https://smartsplit-app-cv3e.onrender.com</span></p>
+            <p>✅ API Base Path: <span className="text-cyan-400">/api</span></p>
             <p>✅ API Client: <span className="text-cyan-400">src/lib/api-client.ts</span></p>
+            <p>✅ NextAuth Config: <span className="text-cyan-400">src/app/api/auth/[...nextauth]/route.ts</span></p>
             <p>✅ All endpoints tested and ready to use</p>
             <p>📌 Step 1: Register a new user or use existing credentials</p>
             <p>📌 Step 2: Login to get authentication token</p>
